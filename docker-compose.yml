@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: reseed-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-reseed}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reseed}
+      POSTGRES_DB: ${POSTGRES_DB:-reseed}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reseed} -d ${POSTGRES_DB:-reseed}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reseed
+
+  mongo:
+    image: mongo:8.0
+    container_name: reseed-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-reseed}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-reseed}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-reseed}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./docker/mongo/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.adminCommand({ ping: 1 })' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reseed
+
+volumes:
+  postgres_data:
+    name: reseed_postgres_data
+  mongo_data:
+    name: reseed_mongo_data
+
+networks:
+  reseed:
+    name: reseed
