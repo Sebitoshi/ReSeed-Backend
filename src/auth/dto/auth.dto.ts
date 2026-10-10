@@ -1,6 +1,9 @@
 import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { UserRole } from '../../users/entities/user.entity.js';
 
+// El rol admin no se puede auto-asignar en el registro publico.
+export const REGISTRABLE_ROLES = [UserRole.ENTREPRENEUR, UserRole.BUYER, UserRole.VOLUNTEER] as const;
+
 export class RegisterDto {
   @IsEmail()
   email!: string;
@@ -15,8 +18,8 @@ export class RegisterDto {
   @MaxLength(120)
   name!: string;
 
-  @IsEnum(UserRole, {
-    message: 'role debe ser admin, emprendedor, comprador o voluntario',
+  @IsEnum(REGISTRABLE_ROLES, {
+    message: 'role debe ser emprendedor, comprador o voluntario',
   })
   @IsOptional()
   role?: UserRole;

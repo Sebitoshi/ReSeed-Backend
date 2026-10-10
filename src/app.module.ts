@@ -3,6 +3,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
+import { EntrepreneursModule } from './entrepreneurs/entrepreneurs.module.js';
+import { ProductsModule } from './products/products.module.js';
 import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
 
 @Module({
@@ -15,11 +17,14 @@ import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
       password: process.env.POSTGRES_PASSWORD ?? 'reseed',
       database: process.env.POSTGRES_DB ?? 'reseed',
       autoLoadEntities: true,
-      // Para produccion se recomienda migraciones en lugar de synchronize.
-      synchronize: process.env.TYPEORM_SYNCHRONIZE !== 'false',
+      // Esquema gestionado EXCLUSIVAMENTE por migraciones. Solo para scaffolding
+      // en desarrollo local fresco: TYPEORM_SYNCHRONIZE=true.
+      synchronize: process.env.TYPEORM_SYNCHRONIZE === 'true',
     }),
     UsersModule,
     AuthModule,
+    EntrepreneursModule,
+    ProductsModule,
   ],
   providers: [
     // Exige JWT en todos los endpoints; @Public() para liberar rutas publicas.

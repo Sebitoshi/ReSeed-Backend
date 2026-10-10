@@ -34,6 +34,8 @@ coverage/
 .cache/
 .vite/
 
+# Freebuff
+.freebuff/
 # OS
 .DS_Store
 Thumbs.db
