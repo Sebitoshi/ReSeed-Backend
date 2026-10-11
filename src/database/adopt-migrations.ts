@@ -3,6 +3,7 @@
 //   pnpm exec tsx src/database/adopt-migrations.ts
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
+import { postgresSslOptions } from './postgres-ssl.js';
 
 async function main() {
   const ds = new DataSource({
@@ -12,6 +13,7 @@ async function main() {
     username: process.env.POSTGRES_USER ?? 'reseed',
     password: process.env.POSTGRES_PASSWORD ?? 'reseed',
     database: process.env.POSTGRES_DB ?? 'reseed',
+    ...postgresSslOptions(),
     synchronize: false,
   });
   await ds.initialize();

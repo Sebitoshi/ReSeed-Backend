@@ -12,6 +12,7 @@ import { VolunteerModule } from './volunteer/volunteer.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
 import { RolesGuard } from './users/decorators/roles.guard.js';
+import { postgresSslOptions } from './database/postgres-ssl.js';
 
 @Module({
   imports: [
@@ -22,6 +23,8 @@ import { RolesGuard } from './users/decorators/roles.guard.js';
       username: process.env.POSTGRES_USER ?? 'reseed',
       password: process.env.POSTGRES_PASSWORD ?? 'reseed',
       database: process.env.POSTGRES_DB ?? 'reseed',
+      // TLS opcional (p.ej. Aiven); ver POSTGRES_SSL en .env.
+      ...postgresSslOptions(),
       autoLoadEntities: true,
       // Esquema gestionado EXCLUSIVAMENTE por migraciones. Solo para scaffolding
       // en desarrollo local fresco: TYPEORM_SYNCHRONIZE=true.

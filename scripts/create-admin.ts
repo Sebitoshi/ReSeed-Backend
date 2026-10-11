@@ -7,6 +7,7 @@ config();
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User, UserRole } from '../src/users/entities/user.entity.js';
+import { postgresSslOptions } from '../src/database/postgres-ssl.js';
 
 async function main() {
   const [emailArg, passwordArg] = process.argv.slice(2);
@@ -30,6 +31,7 @@ async function main() {
     username: process.env.POSTGRES_USER ?? 'reseed',
     password: process.env.POSTGRES_PASSWORD ?? 'reseed',
     database: process.env.POSTGRES_DB ?? 'reseed',
+    ...postgresSslOptions(),
     entities: [User],
     synchronize: false,
   });
