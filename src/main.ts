@@ -1,3 +1,6 @@
+// Debe ser el primer import: carga .env antes de que AppModule lea process.env
+// (SMTP, JWT, puerto). Sin esto, cualquier valor sin default queda undefined.
+import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
