@@ -6,7 +6,12 @@ import { UsersModule } from './users/users.module.js';
 import { EntrepreneursModule } from './entrepreneurs/entrepreneurs.module.js';
 import { ProductsModule } from './products/products.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
+import { CampaignsModule } from './campaigns/campaigns.module.js';
+import { VolunteerModule } from './volunteer/volunteer.module.js';
+import { AdminModule } from './admin/admin.module.js';
 import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
+import { RolesGuard } from './users/decorators/roles.guard.js';
 
 @Module({
   imports: [
@@ -27,10 +32,17 @@ import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
     EntrepreneursModule,
     ProductsModule,
     PaymentsModule,
+    NotificationsModule,
+    CampaignsModule,
+    VolunteerModule,
+    AdminModule,
   ],
   providers: [
     // Exige JWT en todos los endpoints; @Public() para liberar rutas publicas.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Aplica @Roles(...) en cualquier controller. Sin metadata permite el paso,
+    // asi que no afecta a las rutas que no usan roles.
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

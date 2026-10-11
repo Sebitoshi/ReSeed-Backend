@@ -6,9 +6,14 @@ import { EntrepreneursService } from './entrepreneurs.service.js';
 import { EntrepreneurStatusLogService } from './entrepreneur-status-log.service.js';
 import { EntrepreneursController } from './entrepreneurs.controller.js';
 import { UsersModule } from '../users/users.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Entrepreneur, EntrepreneurStatusLog]), UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([Entrepreneur, EntrepreneurStatusLog]),
+    UsersModule,
+    NotificationsModule,
+  ],
   controllers: [EntrepreneursController],
   providers: [EntrepreneursService, EntrepreneurStatusLogService],
   exports: [EntrepreneursService],

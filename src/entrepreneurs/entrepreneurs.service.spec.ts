@@ -4,6 +4,8 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { EntrepreneursService } from './entrepreneurs.service.js';
 import { Entrepreneur, EntrepreneurStatus } from './entities/entrepreneur.entity.js';
 import { EntrepreneurStatusLogService } from './entrepreneur-status-log.service.js';
+import { UsersService } from '../users/users.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type { AuthUser } from '../users/decorators/current-user.decorator.js';
 
 const user = (role: string, userId = 'u1'): AuthUser => ({
@@ -128,6 +130,8 @@ describe('EntrepreneursService (unit)', () => {
         EntrepreneursService,
         { provide: getRepositoryToken(Entrepreneur), useValue: repo },
         { provide: EntrepreneurStatusLogService, useValue: log },
+        { provide: UsersService, useValue: { findById: vi.fn(async () => null) } },
+        { provide: NotificationsService, useValue: { notifyUser: vi.fn(async () => null) } },
       ],
     }).compile();
     service = moduleRef.get(EntrepreneursService);

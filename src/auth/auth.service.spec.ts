@@ -4,6 +4,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service.js';
 import { UsersService } from '../users/users.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { UserRole } from '../users/entities/user.entity.js';
 
 describe('AuthService', () => {
@@ -14,6 +15,7 @@ describe('AuthService', () => {
     toPublic: ReturnType<typeof vi.fn>;
   };
   let jwt: { signAsync: ReturnType<typeof vi.fn> };
+  let notifications: { notifyUser: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     usersService = {
@@ -25,12 +27,14 @@ describe('AuthService', () => {
       })),
     };
     jwt = { signAsync: vi.fn(async () => 'signed-token') };
+    notifications = { notifyUser: vi.fn(async () => null) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UsersService, useValue: usersService },
         { provide: JwtService, useValue: jwt },
+        { provide: NotificationsService, useValue: notifications },
       ],
     }).compile();
 
@@ -67,12 +71,27 @@ describe('AuthService', () => {
       id: 'u1',
       email: 'a@b.com',
       role: UserRole.BUYER,
+      isActive: true,
       passwordHash: await bcrypt.hash('secret123', 10),
     });
 
     const result = await service.login({ email: 'a@b.com', password: 'secret123' });
     expect(result.accessToken).toBe('signed-token');
     expect(result.user.email).toBe('a@b.com');
+  });
+
+  it('rechaza login de una cuenta desactivada por el admin', async () => {
+    usersService.findByEmail.mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.com',
+      role: UserRole.BUYER,
+      isActive: false,
+      passwordHash: await bcrypt.hash('secret123', 10),
+    });
+
+    await expect(
+      service.login({ email: 'a@b.com', password: 'secret123' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('rechaza login con contrasena incorrecta', async () => {

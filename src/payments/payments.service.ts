@@ -15,6 +15,10 @@ import { PAYMENTS_GATEWAY } from './payments.constants.js';
 import type { AuthUser } from '../users/decorators/current-user.decorator.js';
 import { UserRole } from '../users/entities/user.entity.js';
 import { Entrepreneur } from '../entrepreneurs/entities/entrepreneur.entity.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import { NotificationType } from '../notifications/entities/notification.entity.js';
+import { templates } from '../notifications/templates.js';
+import { UsersService } from '../users/users.service.js';
 
 export const DEFAULT_CURRENCY = 'COP';
 
@@ -72,7 +76,48 @@ export class PaymentsService {
     private readonly entrepreneurs: Repository<Entrepreneur>,
     @Inject(PAYMENTS_GATEWAY)
     private readonly gateway: GatewayProvider,
+    private readonly notifications: NotificationsService,
+    private readonly users: UsersService,
   ) {}
+
+  private appUrl(): string {
+    return process.env.APP_URL ?? 'http://localhost:3000';
+  }
+
+  /** Aviso al comprador; best-effort, nunca interrumpe el cobro. */
+  private async notifyBuyer(
+    userId: string | null,
+    payment: Payment,
+    kind: 'iniciado' | 'confirmado' | 'rechazado' | 'reembolso',
+    motivo?: string | null,
+  ): Promise<void> {
+    if (!userId) return;
+    try {
+      const buyer = await this.users.findById(userId);
+      const name = buyer?.name ?? 'Hola';
+      const monto = `${Money.centsToDecimalString(payment.amountCents)} ${payment.currencyCode}`;
+      const content =
+        kind === 'iniciado'
+          ? templates.pagoIniciado(name, monto, payment.description ?? null, this.appUrl())
+          : kind === 'confirmado'
+            ? templates.pagoConfirmado(name, monto, payment.description ?? null)
+            : kind === 'rechazado'
+              ? templates.pagoRechazado(name, monto)
+              : templates.reembolsoSolicitado(
+                  name,
+                  `${Money.centsToDecimalString(payment.refundedAmountCents)} ${payment.currencyCode}`,
+                  motivo ?? null,
+                );
+      await this.notifications.notifyUser(
+        userId,
+        kind === 'reembolso' ? NotificationType.REEMBOLSO : NotificationType.PAGO,
+        content,
+        { referenceType: 'payment', referenceId: payment.id },
+      );
+    } catch {
+      // El pago ya quedo registrado; el correo es best-effort.
+    }
+  }
 
   private toPublic(p: Payment): PublicPayment {
     return {
@@ -133,6 +178,7 @@ export class PaymentsService {
         description: dto.description ?? null,
       }),
     );
+    await this.notifyBuyer(user.userId, payment, 'iniciado');
     return { payment: this.toOwnerView(payment), checkoutUrl: session.checkoutUrl };
   }
 
@@ -169,6 +215,7 @@ export class PaymentsService {
       payment.status = PaymentStatus.APPROVED;
       payment.confirmedAt = new Date();
       await this.payments.save(payment);
+      await this.notifyBuyer(payment.payerUserId, payment, 'confirmado');
       return { paymentId: payment.id, status: payment.status, changed: true };
     }
 
@@ -183,6 +230,7 @@ export class PaymentsService {
       }
       payment.status = PaymentStatus.REJECTED;
       await this.payments.save(payment);
+      await this.notifyBuyer(payment.payerUserId, payment, 'rechazado');
       return { paymentId: payment.id, status: payment.status, changed: true };
     }
 
@@ -242,6 +290,7 @@ export class PaymentsService {
       payment.status = PaymentStatus.REFUNDED;
     }
     await this.payments.save(payment);
+    await this.notifyBuyer(payment.payerUserId, payment, 'reembolso');
     return { paymentId: payment.id, status: payment.status, changed: true };
   }
 
@@ -298,6 +347,7 @@ export class PaymentsService {
       payment.status = PaymentStatus.REFUNDED;
     }
     await this.payments.save(payment);
+    await this.notifyBuyer(payment.payerUserId, payment, 'reembolso', input?.reason ?? null);
     return this.toOwnerView(payment);
   }
 

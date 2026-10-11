@@ -8,6 +8,8 @@ import { PaymentsController } from './payments.controller.js';
 import { DummyGateway } from './gateway/dummy-gateway.js';
 import { PAYMENTS_GATEWAY } from './payments.constants.js';
 import type { GatewayProvider } from './gateway/payment-gateway.interface.js';
+import { UsersModule } from '../users/users.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 // Eleccion de pasarela por env; hoy solo existe el adapter dummy (sandbox).
 function pickGateway(): GatewayProvider {
@@ -21,7 +23,11 @@ function pickGateway(): GatewayProvider {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Payment, Refund, Entrepreneur])],
+  imports: [
+    TypeOrmModule.forFeature([Payment, Refund, Entrepreneur]),
+    UsersModule,
+    NotificationsModule,
+  ],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { Public } from '../users/decorators/public.decorator.js';
 import { CurrentUser } from '../users/decorators/current-user.decorator.js';
@@ -54,6 +54,7 @@ export class AuthController {
   // Endpoint de ejemplo protegido solo para administradores.
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('jwt')
   @Get('admin/only')
   @ApiOperation({
     summary: 'Ejemplo de endpoint solo-admin',

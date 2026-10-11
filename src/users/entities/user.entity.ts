@@ -37,6 +37,13 @@ export class User {
   @Column({ type: 'varchar', length: 60, nullable: true })
   phone?: string | null;
 
+  // Desactivacion administrativa: sin esto el login y el JWT se rechazan.
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive!: boolean;
+
+  @Column({ name: 'deactivated_at', type: 'timestamptz', nullable: true })
+  deactivatedAt?: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

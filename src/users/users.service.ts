@@ -13,6 +13,7 @@ export interface PublicUser {
   role: UserRole;
   bio: string | null;
   phone: string | null;
+  isActive: boolean;
   createdAt: Date;
 }
 
@@ -39,6 +40,7 @@ export class UsersService {
       role: user.role,
       bio: user.bio ?? null,
       phone: user.phone ?? null,
+      isActive: user.isActive,
       createdAt: user.createdAt,
     };
   }

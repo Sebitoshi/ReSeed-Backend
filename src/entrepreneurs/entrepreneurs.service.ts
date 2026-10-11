@@ -24,6 +24,10 @@ import type { AuthUser } from '../users/decorators/current-user.decorator.js';
 import { UserRole } from '../users/entities/user.entity.js';
 import { EntrepreneurStatusLogService } from './entrepreneur-status-log.service.js';
 import { DEFAULT_PAGE_SIZE } from './dto/list-query.dto.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import { NotificationType } from '../notifications/entities/notification.entity.js';
+import { templates } from '../notifications/templates.js';
+import { UsersService } from '../users/users.service.js';
 
 function slugify(name: string): string {
   return name
@@ -92,6 +96,8 @@ export class EntrepreneursService {
     @InjectRepository(Entrepreneur)
     private readonly repo: Repository<Entrepreneur>,
     private readonly statusLog: EntrepreneurStatusLogService,
+    private readonly users: UsersService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private toPublic(e: Entrepreneur): PublicEntrepreneur {
@@ -233,6 +239,36 @@ export class EntrepreneursService {
     }
   }
 
+  /**
+   * Avisa al dueño el resultado de la revision. Es fire-and-forget: nunca
+   * interrumpe la transicion de estado si el correo falla.
+   */
+  private async notifyOwner(
+    ownerId: string,
+    e: Entrepreneur,
+    accion: 'aprobado' | 'rechazado' | 'suspendido',
+    note: string | null,
+  ): Promise<void> {
+    try {
+      const owner = await this.users.findById(ownerId);
+      if (!owner) return;
+      await this.notifications.notifyUser(
+        ownerId,
+        NotificationType.EMPRENDIMIENTO,
+        templates.emprendimientoRevisado(
+          owner.name,
+          e.name,
+          accion,
+          note,
+          process.env.APP_URL ?? 'http://localhost:3000',
+        ),
+        { referenceType: 'entrepreneur', referenceId: e.id },
+      );
+    } catch {
+      // El estado ya quedo registrado; el correo es best-effort.
+    }
+  }
+
   async approve(id: string, user: AuthUser, dto: ReviewActionDto) {
     this.assertAdmin(user);
     const e = await this.findOne(id);
@@ -240,6 +276,7 @@ export class EntrepreneursService {
     e.reviewNote = dto.note ?? null;
     const saved = await this.repo.save(e);
     await this.statusLog.record(e.id, EntrepreneurStatus.APPROVED, this.actor(user), dto.note);
+    await this.notifyOwner(e.ownerId, e, 'aprobado', dto.note ?? null);
     return this.toOwnerView(saved);
   }
 
@@ -258,6 +295,7 @@ export class EntrepreneursService {
     e.reviewNote = dto.note;
     const saved = await this.repo.save(e);
     await this.statusLog.record(e.id, EntrepreneurStatus.REJECTED, this.actor(user), dto.note);
+    await this.notifyOwner(e.ownerId, e, 'rechazado', dto.note);
     return this.toOwnerView(saved);
   }
 
@@ -271,6 +309,7 @@ export class EntrepreneursService {
     e.reviewNote = dto.note;
     const saved = await this.repo.save(e);
     await this.statusLog.record(e.id, EntrepreneurStatus.SUSPENDED, this.actor(user), dto.note);
+    await this.notifyOwner(e.ownerId, e, 'suspendido', dto.note);
     return this.toOwnerView(saved);
   }
 

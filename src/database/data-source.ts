@@ -8,6 +8,9 @@ import { ProductCategory } from '../products/entities/product-category.entity.js
 import { ProductImage } from '../products/entities/product-image.entity.js';
 import { Payment } from '../payments/entities/payment.entity.js';
 import { Refund } from '../payments/entities/refund.entity.js';
+import { Notification } from '../notifications/entities/notification.entity.js';
+import { Campaign } from '../campaigns/entities/campaign.entity.js';
+import { VolunteerActivity, VolunteerSignup } from '../volunteer/entities/volunteer.entity.js';
 
 export default new DataSource({
   type: 'postgres',
@@ -25,6 +28,10 @@ export default new DataSource({
     ProductImage,
     Payment,
     Refund,
+    Notification,
+    Campaign,
+    VolunteerActivity,
+    VolunteerSignup,
   ],
   // Las migraciones son la unica fuente de esquema; nunca synchronize.
   synchronize: false,

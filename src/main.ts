@@ -30,6 +30,10 @@ async function bootstrap() {
     .addTag('Productos', 'Catalogo de productos: publico, dueno y publicacion')
     .addTag('Categorias de productos', 'Arbol y conteos de categorias')
     .addTag('Pagos', 'Intenciones de pago, webhooks y reembolsos')
+    .addTag('Notificaciones', 'Historial de notificaciones y envios por correo (SMTP Gmail)')
+    .addTag('Campanas', 'Campanas de la plataforma: listado publico y gestion admin')
+    .addTag('Voluntariados', 'Actividades de voluntariado, inscripciones y su revision')
+    .addTag('Administracion', 'Panel admin: usuarios, roles, moderacion, difusion y reportes')
     .addBearerAuth(
       {
         type: 'http',

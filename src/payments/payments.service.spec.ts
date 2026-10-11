@@ -12,6 +12,8 @@ import { Refund } from './entities/refund.entity.js';
 import { Entrepreneur } from '../entrepreneurs/entities/entrepreneur.entity.js';
 import type { GatewayProvider } from './gateway/payment-gateway.interface.js';
 import { PAYMENTS_GATEWAY } from './payments.constants.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import { UsersService } from '../users/users.service.js';
 
 import type { AuthUser } from '../users/decorators/current-user.decorator.js';
 
@@ -119,6 +121,11 @@ describe('PaymentsService (unit)', () => {
         { provide: getRepositoryToken(Refund), useValue: refundsRepo },
         { provide: getRepositoryToken(Entrepreneur), useValue: makeEntsRepo(ents) },
         { provide: PAYMENTS_GATEWAY, useValue: gwRef },
+        { provide: NotificationsService, useValue: { notifyUser: vi.fn(async () => null) } },
+        {
+          provide: UsersService,
+          useValue: { findById: vi.fn(async (id: string) => ({ id, name: 'Comprador' })) },
+        },
       ],
     }).compile();
     service = moduleRef.get(PaymentsService);
