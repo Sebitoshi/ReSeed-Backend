@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { EntrepreneursModule } from './entrepreneurs/entrepreneurs.module.js';
 import { ProductsModule } from './products/products.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
 
 @Module({
@@ -25,6 +26,7 @@ import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
     AuthModule,
     EntrepreneursModule,
     ProductsModule,
+    PaymentsModule,
   ],
   providers: [
     // Exige JWT en todos los endpoints; @Public() para liberar rutas publicas.

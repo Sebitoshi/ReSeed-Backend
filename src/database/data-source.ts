@@ -6,6 +6,8 @@ import { EntrepreneurStatusLog } from '../entrepreneurs/entities/entrepreneur-st
 import { Product } from '../products/entities/product.entity.js';
 import { ProductCategory } from '../products/entities/product-category.entity.js';
 import { ProductImage } from '../products/entities/product-image.entity.js';
+import { Payment } from '../payments/entities/payment.entity.js';
+import { Refund } from '../payments/entities/refund.entity.js';
 
 export default new DataSource({
   type: 'postgres',
@@ -21,6 +23,8 @@ export default new DataSource({
     Product,
     ProductCategory,
     ProductImage,
+    Payment,
+    Refund,
   ],
   // Las migraciones son la unica fuente de esquema; nunca synchronize.
   synchronize: false,
