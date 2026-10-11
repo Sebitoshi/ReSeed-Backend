@@ -1,126 +1,138 @@
 <p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+  <img src="https://img.shields.io/badge/Reseed-Plataforma%20comunitaria-16a34a?style=for-the-badge" alt="Reseed" />
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+<h1 align="center">🌱 Reseed</h1>
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+<p align="center">
+  <b>Backend de la plataforma Reseed</b><br/>
+  Donde los emprendimientos locales encuentran a la gente que quiere apoyarlos.
 </p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+<p align="center">
+  <a href="#-español">Español</a> ·
+  <a href="#-english">English</a> ·
+  <a href="DOCUMENTATION.md">Documentación técnica</a>
+</p>
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## 🇪🇸 Español
 
-```bash
-$ pnpm install
+### ¿Qué es Reseed?
+
+Reseed es una plataforma que conecta **emprendimientos locales** con personas que quieren apoyarlos: comprando sus productos, colaborando como **voluntarios** o participando en **campañas solidarias**.
+
+Este repositorio contiene el **backend**: la parte que guarda la información, controla quién puede hacer qué y envía los correos. El sitio web que ve el usuario vive en un proyecto aparte.
+
+### ¿Qué se puede hacer?
+
+| | |
+|---|---|
+| 🏪 **Emprendimientos** | Cada emprendedor crea su ficha y la envía a revisión. Una vez aprobada, aparece en el directorio público y puede vender productos. |
+| 🛍️ **Productos** | Catálogo con precios, stock e imágenes. Todo empieza como borrador y solo se publica cuando el emprendimiento está aprobado. |
+| 🛒 **Compras** | Los compradores pagan desde un checkout seguro. Reciben la confirmación por correo. |
+| 🤝 **Voluntariados** | Se publican jornadas con cupos limitados. El voluntario se inscribe y el organizador confirma o rechaza cada inscripción. |
+| 📢 **Campañas** | Iniciativas solidarias que se muestran al público y se pueden difundir por correo a toda la comunidad. |
+| ✉️ **Notificaciones** | Cada evento importante deja registro y envía un correo: bienvenida, pagos, resultado de revisiones, voluntariados y campañas. |
+| 🛡️ **Panel admin** | Gestión de usuarios y roles, moderación de contenido, difusión de correos y reportes de actividad. |
+
+### Los cuatro roles
+
+| Rol | Qué puede hacer |
+|---|---|
+| 👤 **Comprador** | Explora el catálogo y compra productos. |
+| 🌱 **Emprendedor** | Publica su emprendimiento y sus productos. |
+| 🤝 **Voluntario** | Se inscribe en jornadas de voluntariado. |
+| 🛡️ **Administrador** | Aprueba fichas, modera contenido, gestiona usuarios y envía notificaciones. |
+
+> El rol de administrador **no se puede auto-asignar** al registrarse. Se crea desde una herramienta interna.
+
+### Cómo funciona la revisión
+
+Reseed está pensado para que **nada llegue al público sin pasar por un humano**:
+
+1. Un emprendedor envía su ficha → queda en estado **pendiente**.
+2. Un administrador la **aprueba**, **rechaza** (con motivo) o **suspende**.
+3. El emprendedor recibe el correo con la decisión y, si fue rechazado, puede corregir y **reenviar**.
+4. Los productos siguen el mismo camino: solo se publican si el emprendimiento está aprobado.
+
+Todo queda registrado en un **historial de auditoría** que responde quién cambió qué, cuándo y por qué.
+
+### Empezar
+
+Para poner el proyecto en marcha, la configuración y los comandos, visita la **[documentación técnica →](DOCUMENTATION.md)**
+
+### Documentación de la API
+
+La API está documentada en español y se puede explorar de forma interactiva. Con el servidor corriendo, abre:
+
+```
+http://localhost:3000/docs
 ```
 
-## Compile and run the project
+Desde ahí puedes ver cada endpoint, qué necesita token y **probarlo directamente** desde el navegador.
 
-```bash
-# development
-$ pnpm run start
+---
 
-# watch mode
-$ pnpm run start:dev
+## 🇬🇧 English
 
-# production mode
-$ pnpm run start:prod
+### What is Reseed?
+
+Reseed is a platform that connects **local entrepreneurs** with people who want to support them: buying their products, volunteering, or taking part in **solidarity campaigns**.
+
+This repository holds the **backend** — the part that stores information, controls who can do what, and sends the emails. The website users actually see lives in a separate project.
+
+### What can you do?
+
+| | |
+|---|---|
+| 🏪 **Entrepreneurs** | Each entrepreneur creates their profile and submits it for review. Once approved, it shows up in the public directory and can sell products. |
+| 🛍️ **Products** | A catalog with prices, stock and images. Everything starts as a draft and only gets published once the venture is approved. |
+| 🛒 **Purchases** | Buyers pay through a secure checkout and get an email confirmation. |
+| 🤝 **Volunteering** | Events with limited spots are published. Volunteers sign up and the organizer confirms or rejects each application. |
+| 📢 **Campaigns** | Solidarity initiatives shown to the public and shareable by email with the whole community. |
+| ✉️ **Notifications** | Every important event is recorded and emailed: welcome, payments, review outcomes, volunteering and campaigns. |
+| 🛡️ **Admin panel** | User and role management, content moderation, email broadcasting and activity reports. |
+
+### The four roles
+
+| Role | What they can do |
+|---|---|
+| 👤 **Buyer** | Browses the catalog and purchases products. |
+| 🌱 **Entrepreneur** | Publishes their venture and its products. |
+| 🤝 **Volunteer** | Signs up for volunteering events. |
+| 🛡️ **Administrator** | Approves profiles, moderates content, manages users and sends notifications. |
+
+> The administrator role **cannot be self-assigned** when registering. It is created through an internal tool.
+
+### How review works
+
+Reseed is built so that **nothing reaches the public without a human looking at it first**:
+
+1. An entrepreneur submits their profile → it becomes **pending**.
+2. An administrator **approves** it, **rejects** it (with a reason), or **suspends** it.
+3. The entrepreneur gets an email with the decision, and if it was rejected they can fix it and **resubmit**.
+4. Products follow the same path: they only publish if the venture is approved.
+
+Everything is captured in an **audit history** showing who changed what, when, and why.
+
+### Getting started
+
+For setup instructions, configuration and commands, see the **[technical documentation →](DOCUMENTATION.md)**
+
+### API Documentation
+
+The API is documented in Spanish and can be explored interactively. With the server running, open:
+
+```
+http://localhost:3000/docs
 ```
 
-## Run tests
+There you can see every endpoint, know which ones require a token, and **try them right from your browser**.
 
-```bash
-# unit tests
-$ pnpm run test
+---
 
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-To add it to this project:
-
-```bash
-$ pnpm install @nestjs/observe
-```
-
-Then follow the [setup guide](https://docs.nestjs.com/observability/overview) - it takes a single import and an app key.
-
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-
-# ReSeed-Backend
+<p align="center">
+  Built with <a href="https://nestjs.com/">NestJS</a> · TypeScript · PostgreSQL
+</p>
