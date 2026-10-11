@@ -19,10 +19,13 @@ import { CurrentUser } from '../users/decorators/current-user.decorator.js';
 import type { AuthUser } from '../users/decorators/current-user.decorator.js';
 import { VolunteerService } from './volunteer.service.js';
 import {
+  CreateCollectionDto,
   CreateVolunteerDto,
+  ListCollectionsDto,
   ListSignupsDto,
   ListVolunteerDto,
   ReviewSignupDto,
+  UpdateCollectionDto,
   UpdateVolunteerDto,
 } from './dto/volunteer.dto.js';
 
@@ -203,5 +206,81 @@ export class VolunteerController {
   @ApiParam({ name: 'id', format: 'uuid' })
   cancel(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.service.cancel(user.userId, id);
+  }
+
+  // --- Materiales recolectados ---
+
+  @Public()
+  @Get('public/:id/collections')
+  @ApiOperation({
+    summary: 'Materiales recolectados en una jornada (publico)',
+    description:
+      'Lo que la jornada recolecto y en que materia prima se transformo. No requiere token.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  publicCollections(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.listCollectionsByActivity(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Get('admin/collections')
+  @ApiOperation({
+    summary: 'Recolecciones (admin)',
+    description:
+      'Listado con filtros por material, jornada, producto de materia prima y rango de fechas. Envia rawMaterialProductId=none para ver las aun sin transformar.',
+  })
+  collections(@CurrentUser() user: AuthUser, @Query() query: ListCollectionsDto) {
+    return this.service.adminListCollections(user, query);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Get('admin/collections/summary')
+  @ApiOperation({
+    summary: 'Resumen de material recolectado (admin)',
+    description: 'Totales agregados por tipo de material y unidad, con filtros de fechas.',
+  })
+  collectionSummary(@CurrentUser() user: AuthUser, @Query() query: ListCollectionsDto) {
+    return this.service.collectionSummary(user, query);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Post('admin/activities/:id/collections')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Registrar material recolectado en una jornada (admin)',
+    description:
+      'Cantidad en la unidad base: gramos si unit=kg, piezas si unit=unidad. Usa rawMaterialProductId para cerrar la traza hasta la materia prima.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Id de la jornada' })
+  createCollection(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateCollectionDto,
+  ) {
+    return this.service.adminCreateCollection(user, id, dto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Patch('admin/collections/:id')
+  @ApiOperation({ summary: 'Editar una recoleccion (admin)' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  updateCollection(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCollectionDto,
+  ) {
+    return this.service.updateCollection(id, user, dto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Delete('admin/collections/:id/unlink')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Desvincular una recoleccion de su materia prima (admin)',
+    description: 'La recoleccion pasa a "sin transformar"; el registro se conserva.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  unlinkCollection(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.unlinkCollection(id, user);
   }
 }

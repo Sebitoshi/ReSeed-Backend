@@ -9,19 +9,26 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
+  CollectionUnit,
+  MaterialCollection,
+  MaterialType,
   SignupStatus,
   VolunteerActivity,
   VolunteerStatus,
   VolunteerSignup,
 } from './entities/volunteer.entity.js';
 import type {
+  CreateCollectionDto,
   CreateVolunteerDto,
+  ListCollectionsDto,
   ListSignupsDto,
   ListVolunteerDto,
+  UpdateCollectionDto,
   UpdateVolunteerDto,
 } from './dto/volunteer.dto.js';
 import type { AuthUser } from '../users/decorators/current-user.decorator.js';
 import { UserRole } from '../users/entities/user.entity.js';
+import { Product } from '../products/entities/product.entity.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { NotificationType } from '../notifications/entities/notification.entity.js';
 import { templates } from '../notifications/templates.js';
@@ -60,6 +67,36 @@ export interface AdminSignupView extends SignupView {
   volunteer: { id: string; name: string; email: string } | null;
 }
 
+/** Lo que se recolecto en una jornada y en que materia prima termino. */
+export interface CollectionView {
+  id: string;
+  /** null si la jornada origen fue borrada definitivamente. */
+  activityId: string | null;
+  activityTitle: string | null;
+  material: MaterialType;
+  /** Entero en la unidad base: gramos si unit=kg, piezas si no. */
+  quantity: number;
+  unit: CollectionUnit;
+  /** Cantidad legible, p.ej. "25.000 g" o "320 piezas". */
+  quantityLabel: string;
+  collectedAt: Date;
+  /** Producto de materia prima en el que se transformo; null = sin transformar. */
+  rawMaterialProductId: string | null;
+  rawMaterialProductName: string | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: Date;
+}
+
+/** Resumen agregado por tipo de material en una ventana de fechas. */
+export interface CollectionSummary {
+  material: MaterialType;
+  unit: CollectionUnit;
+  /** Suma de las cantidades en su unidad base. */
+  totalQuantity: number;
+  entries: number;
+}
+
 export interface Paginated<T> {
   items: T[];
   total: number;
@@ -80,6 +117,10 @@ export class VolunteerService {
     private readonly repo: Repository<VolunteerActivity>,
     @InjectRepository(VolunteerSignup)
     private readonly signups: Repository<VolunteerSignup>,
+    @InjectRepository(MaterialCollection)
+    private readonly collections: Repository<MaterialCollection>,
+    @InjectRepository(Product)
+    private readonly products: Repository<Product>,
     private readonly notifications: NotificationsService,
     private readonly users: UsersService,
   ) {}
@@ -437,5 +478,192 @@ export class VolunteerService {
       // Best-effort.
     }
     return this.toSignupView(saved);
+  }
+
+  // ---------- Materiales recolectados ----------
+
+  /**
+   * Cantidad legible sin flotantes: para kg se hace la division con enteros
+   * (25000 g -> "25 kg"), igual que con los precios en centavos.
+   */
+  private quantityLabel(quantity: number, unit: CollectionUnit): string {
+    if (unit === CollectionUnit.KG) {
+      const whole = Math.floor(quantity / 1000);
+      const frac = quantity % 1000;
+      if (frac === 0) return `${whole} kg`;
+      return `${whole}.${String(frac).padStart(3, '0')} kg`;
+    }
+    if (unit === CollectionUnit.UNIDAD) return `${quantity} piezas`;
+    return `${quantity} bultos`;
+  }
+
+  private toCollectionView(c: MaterialCollection): CollectionView {
+    return {
+      id: c.id,
+      activityId: c.activityId ?? null,
+      activityTitle: c.activity?.title ?? null,
+      material: c.material,
+      quantity: c.quantity,
+      unit: c.unit,
+      quantityLabel: this.quantityLabel(c.quantity, c.unit),
+      collectedAt: c.collectedAt,
+      rawMaterialProductId: c.rawMaterialProductId ?? null,
+      rawMaterialProductName: c.rawMaterialProduct?.name ?? null,
+      notes: c.notes ?? null,
+      createdBy: c.createdBy ?? null,
+      createdAt: c.createdAt,
+    };
+  }
+
+  /** Valida que el producto de materia prima exista y no este archivado. */
+  private async assertProduct(productId: string): Promise<void> {
+    const p = await this.products.findOne({ where: { id: productId } });
+    if (!p) {
+      throw new NotFoundException('Producto de materia prima no encontrado');
+    }
+  }
+
+  /**
+   * Registra lo que se recolecto en una jornada. Es el eslabon inicial de la
+   * traza: jornada -> material -> materia prima -> socio.
+   */
+  async adminCreateCollection(
+    user: AuthUser,
+    activityId: string,
+    dto: CreateCollectionDto,
+  ): Promise<CollectionView> {
+    this.assertAdmin(user);
+    const activity = await this.findOne(activityId);
+    if (dto.rawMaterialProductId) await this.assertProduct(dto.rawMaterialProductId);
+
+    const saved = await this.collections.save(
+      this.collections.create({
+        activityId: activity.id,
+        material: dto.material,
+        quantity: dto.quantity,
+        unit: dto.unit,
+        collectedAt: dto.collectedAt ? new Date(dto.collectedAt) : new Date(),
+        rawMaterialProductId: dto.rawMaterialProductId ?? null,
+        notes: dto.notes ?? null,
+        createdBy: user.userId,
+      }),
+    );
+    // Cargamos las relaciones para que la respuesta venga completa, igual que
+    // en los listados (sino el nombre de la materia prima vuelve null).
+    const full = await this.collections.findOne({
+      where: { id: saved.id },
+      relations: { activity: true, rawMaterialProduct: true },
+    });
+    return this.toCollectionView(full ?? saved);
+  }
+
+  /** Recolectados de una sola jornada (publico: transparencia del impacto). */
+  async listCollectionsByActivity(activityId: string): Promise<CollectionView[]> {
+    const rows = await this.collections.find({
+      where: { activityId },
+      relations: { activity: true, rawMaterialProduct: true },
+      order: { collectedAt: 'DESC' },
+    });
+    return rows.map((c) => this.toCollectionView(c));
+  }
+
+  private applyCollectionFilters(qb: ReturnType<Repository<MaterialCollection>['createQueryBuilder']>, q: ListCollectionsDto) {
+    if (q.material) qb.andWhere('c.material = :material', { material: q.material });
+    if (q.activityId) qb.andWhere('c.activityId = :activityId', { activityId: q.activityId });
+    // "none" permite ver lo que aun no se ha transformado en materia prima.
+    if (q.rawMaterialProductId === 'none') {
+      qb.andWhere('c.rawMaterialProductId IS NULL');
+    } else if (q.rawMaterialProductId) {
+      qb.andWhere('c.rawMaterialProductId = :productId', {
+        productId: q.rawMaterialProductId,
+      });
+    }
+    if (q.from) qb.andWhere('c.collectedAt >= :from', { from: new Date(q.from) });
+    if (q.to) qb.andWhere('c.collectedAt <= :to', { to: new Date(q.to) });
+    return qb;
+  }
+
+  async adminListCollections(
+    user: AuthUser,
+    q: ListCollectionsDto,
+  ): Promise<Paginated<CollectionView>> {
+    this.assertAdmin(user);
+    const page = Math.max(1, q.page ?? 1);
+    const limit = Math.min(50, Math.max(1, q.limit ?? 12));
+    const qb = this.collections
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.activity', 'a')
+      .leftJoinAndSelect('c.rawMaterialProduct', 'p');
+    this.applyCollectionFilters(qb, q);
+    const [rows, total] = await qb
+      .orderBy('c.collectedAt', 'DESC')
+      .take(limit)
+      .skip((page - 1) * limit)
+      .getManyAndCount();
+    return {
+      items: rows.map((c) => this.toCollectionView(c)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async updateCollection(
+    id: string,
+    user: AuthUser,
+    dto: UpdateCollectionDto,
+  ): Promise<CollectionView> {
+    this.assertAdmin(user);
+    const c = await this.collections.findOne({ where: { id } });
+    if (!c) throw new NotFoundException('Recoleccion no encontrada');
+    if (dto.rawMaterialProductId) await this.assertProduct(dto.rawMaterialProductId);
+
+    if (dto.material !== undefined) c.material = dto.material;
+    if (dto.quantity !== undefined) c.quantity = dto.quantity;
+    if (dto.unit !== undefined) c.unit = dto.unit;
+    if (dto.collectedAt !== undefined) c.collectedAt = new Date(dto.collectedAt);
+    if (dto.rawMaterialProductId !== undefined) {
+      c.rawMaterialProductId = dto.rawMaterialProductId || null;
+    }
+    if (dto.notes !== undefined) c.notes = dto.notes;
+    await this.collections.save(c);
+    const full = await this.collections.findOne({
+      where: { id: c.id },
+      relations: { activity: true, rawMaterialProduct: true },
+    });
+    return this.toCollectionView(full ?? c);
+  }
+
+  /** Desvincula la recoleccion del producto de materia prima. */
+  async unlinkCollection(id: string, user: AuthUser): Promise<CollectionView> {
+    this.assertAdmin(user);
+    const c = await this.collections.findOne({
+      where: { id },
+      relations: { activity: true, rawMaterialProduct: true },
+    });
+    if (!c) throw new NotFoundException('Recoleccion no encontrada');
+    c.rawMaterialProductId = null;
+    c.rawMaterialProduct = null;
+    return this.toCollectionView(await this.collections.save(c));
+  }
+
+  /** Impacto agregado por material; sirve para el panel y los reportes. */
+  async collectionSummary(user: AuthUser, q: ListCollectionsDto): Promise<CollectionSummary[]> {
+    this.assertAdmin(user);
+    const qb = this.collections.createQueryBuilder('c').select('c.material', 'material');
+    qb.addSelect('c.unit', 'unit');
+    qb.addSelect('SUM(c.quantity)', 'totalQuantity');
+    qb.addSelect('COUNT(c.id)', 'entries');
+    this.applyCollectionFilters(qb, q);
+    qb.groupBy('c.material').addGroupBy('c.unit').orderBy('material', 'ASC');
+    const rows: Array<{ material: MaterialType; unit: CollectionUnit; totalQuantity: string; entries: string }> =
+      await qb.getRawMany();
+    return rows.map((r) => ({
+      material: r.material,
+      unit: r.unit,
+      totalQuantity: Number(r.totalQuantity),
+      entries: Number(r.entries),
+    }));
   }
 }

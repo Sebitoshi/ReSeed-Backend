@@ -150,12 +150,85 @@ src/<modulo>/
 | `1760000005000-notifications` | Historial de notificaciones |
 | `1760000006000-campaigns` | Campañas |
 | `1760000007000-volunteer` | Voluntariados e inscripciones |
+| `1760000008000-material-collections` | Materiales recolectados por jornada y su vínculo con la materia prima |
 
 Las migraciones son **idempotentes**: verifican con `information_schema` antes de crear cada tabla o columna, así que se pueden ejecutar sobre una base ya existente sin romper nada.
 
 ### Borrado lógico
 
 `entrepreneurs`, `products`, `campaigns` y `volunteer_activities` usan `deletedAt` (soft-delete). Nunca se borran registros: se archivan y se pueden restaurar. Cada módulo expone su bandeja de archivados.
+
+---
+
+## 5.1 Materia prima y trazabilidad
+
+La plataforma modela el flujo real del negocio:
+
+```
+jornada de limpieza ──► material recolectado ──► producto de materia prima ──► socio ──► artesanía
+```
+
+### `material_collections`
+
+Una fila por **cada material registrado en una jornada**. No es un resumen: son registros individuales, para que la traza sea auditable.
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `activity_id` | uuid, nullable | Jornada de origen. `ON DELETE SET NULL`: si se borra la jornada, el registro del material **se conserva** por trazabilidad. |
+| `material` | enum | `pet`, `plastico_filme`, `plastico_rigido`, `carton`, `papel`, `aluminio`, `vidrio`, `metal`, `organico`, `otro` |
+| `quantity` | integer | **Siempre en la unidad base**: gramos si `unit='kg'`, piezas si `unit='unidad'`, bultos si `unit='bulto'`. |
+| `unit` | enum | `kg`, `unidad`, `bulto` |
+| `collected_at` | timestamptz | Fecha real de la recolección; por defecto el momento del registro. |
+| `raw_material_product_id` | uuid, nullable | **El eslabón de la traza.** `ON DELETE SET NULL`. |
+| `notes` | text | Observaciones: calidad, humedad, incidencias. |
+
+### Por qué `quantity` es un entero
+
+Misma filosofía que `price_cents`: se almacena en la **unidad mínima** para no arrastrar errores de punto flotante en las sumas.
+
+```
+25 kg    → quantity = 25000, unit = 'kg'
+320 latas → quantity = 320,   unit = 'unidad'
+```
+
+La conversión a texto legible (`"25 kg"`, `"320 piezas"`) se hace en el service con aritmética entera, nunca con división de flotantes.
+
+### El vínculo con la materia prima
+
+`raw_material_product_id` apunta a un `Product`. Ese producto representa la **materia prima procesada** que se vende a los socios. Al establecerlo se cierra la cadena:
+
+| Pregunta | Cómo se responde |
+|---|---|
+| ¿De qué jornada salió el material de este producto? | `GET /volunteer/admin/collections?rawMaterialProductId=<id>` |
+| ¿Qué se recolectó en esa jornada? | `GET /volunteer/public/:id/collections` |
+| ¿Qué sigue sin transformar? | `GET /volunteer/admin/collections?rawMaterialProductId=none` |
+
+> Si el producto se borra del catálogo, la recolección **no se borra**: queda como historial y simplemente pierde el vínculo. Nunca se pierde el registro de lo que la comunidad recolectó.
+
+### Convención de categorías
+
+La distinción entre **materia prima** y **artesanías** se maneja con el **árbol de categorías** de `product_categories`, no con un campo propio en `products`. Se crean dos ramas:
+
+```
+├── Materia prima          ← lo que compra el socio
+│   ├── Fibra reciclada
+│   └── Cartón procesado
+└── Artesanías             ← lo que vende el socio al público
+```
+
+Esto evita duplicar el modelo de productos y permite reutilizar todo lo existente: precios en centavos, stock, publicación y pagos.
+
+### Trazabilidad completa de punta a punta
+
+Con lo anterior se puede reconstruir el origen de cualquier producto:
+
+```
+"Hamaca reciclada" (artesanía, publicada)
+   └─ fabricada por: Taller Manos del Río (socio, aprobado)
+        └─ materia prima: "Fibra de PET triturada" (producto, publicado)
+             └─ recolección: 25 kg de PET
+                  └─ jornada: "Limpieza de la ribera", 15 nov, 24 voluntarios
+```
 
 ---
 
@@ -215,7 +288,7 @@ La validación de roles ocurre en **dos niveles**: el guard a nivel de rutas y u
 
 La documentación interactiva está en **`/docs`** (en español, con `persistAuthorization: true`: pegas el token una vez y se queda).
 
-El documento OpenAPI expone **95 operaciones** en **83 rutas**, agrupadas en 10 tags.
+El documento OpenAPI expone **101 operaciones** en **89 rutas**, agrupadas en 10 tags.
 
 ### Autenticación (`/auth`)
 
@@ -327,6 +400,7 @@ El documento OpenAPI expone **95 operaciones** en **83 rutas**, agrupadas en 10 
 |---|---|---|
 | GET | `/volunteer/public` | Público |
 | GET | `/volunteer/public/:id` | Público |
+| GET | `/volunteer/public/:id/collections` | Público |
 | GET | `/volunteer/mine` | Autenticado |
 | POST | `/volunteer/:id/signup` | Autenticado |
 | DELETE | `/volunteer/:id/signup` | Autenticado |
@@ -342,6 +416,11 @@ El documento OpenAPI expone **95 operaciones** en **83 rutas**, agrupadas en 10 
 | GET | `/volunteer/admin/archived` | Admin |
 | POST | `/volunteer/signups/:id/confirm` | Admin |
 | POST | `/volunteer/signups/:id/reject` | Admin |
+| GET | `/volunteer/admin/collections` | Admin |
+| GET | `/volunteer/admin/collections/summary` | Admin |
+| POST | `/volunteer/admin/activities/:id/collections` | Admin |
+| PATCH | `/volunteer/admin/collections/:id` | Admin |
+| DELETE | `/volunteer/admin/collections/:id/unlink` | Admin |
 
 ### Administración (`/admin`) — todo requiere rol admin
 
