@@ -48,25 +48,33 @@ await build({
 
 // NestJS Swagger sirve los assets estaticos de swagger-ui-dist leyendolos
 // de node_modules en runtime; los copiamos junto al bundle.
-const swaggerSrc = path.join(distRoot, 'src/node_modules/.pnpm');
+const pnpmRoot = path.join(root, 'node_modules/.pnpm');
 const swaggerCandidates = fs
-  .readdirSync(path.join(root, 'node_modules/.pnpm'))
+  .readdirSync(pnpmRoot)
   .filter((d) => d.startsWith('swagger-ui-dist@'));
 const assetsDstDir = path.join(outdir, 'swagger-ui-dist');
 fs.mkdirSync(assetsDstDir, { recursive: true });
 
 for (const candidate of swaggerCandidates) {
-  const srcDir = path.join(root, 'node_modules/.pnpm', candidate, 'node_modules', 'swagger-ui-dist', 'dist');
-  for (const f of fs.readdirSync(srcDir)) {
-    if (f.endsWith('.css') || f.endsWith('.js.map') || f.endsWith('.js')) {
-      fs.copyFileSync(path.join(srcDir, f), path.join(assetsDstDir, f));
+  // Cada gestor instala en distinta profundidad; buscamos absolute-path.js
+  // como guia, porque siempre existe dentro del paquete.
+  const targets = fs
+    .readdirSync(pnpmRoot, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile() && e.name === 'absolute-path.js')
+    .map((e) => path.join(e.parentPath, e.name));
+
+  for (const absPathJs of targets) {
+    const base = path.dirname(absPathJs);
+    // pnpm expone los assets tanto en el paquete raiz como en dist/
+    const srcDir = fs.existsSync(path.join(base, 'dist')) ? path.join(base, 'dist') : base;
+    for (const f of fs.readdirSync(srcDir)) {
+      if (f.endsWith('.css') || f.endsWith('.js.map') || f.endsWith('.js')) {
+        fs.copyFileSync(path.join(srcDir, f), path.join(assetsDstDir, f));
+      }
     }
+    // swagger-ui usa absolute-path.js para resolver su directorio en runtime
+    fs.copyFileSync(absPathJs, path.join(outdir, 'absolute-path.js'));
   }
-  // swagger-ui usa absolute-path.js para resolver su directorio en runtime
-  fs.copyFileSync(
-    path.join(root, 'node_modules/.pnpm', candidate, 'node_modules', 'swagger-ui-dist', 'absolute-path.js'),
-    path.join(outdir, 'absolute-path.js'),
-  );
 }
 
 console.log('[bundle-vercel] Bundle generado en', outdir);
