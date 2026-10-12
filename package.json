@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "type": "module",
   "engines": {
-    "node": ">=20.19"
+    "node": ">=22.12"
   },
   "scripts": {
     "build": "nest build && node scripts/bundle-vercel.mjs",
