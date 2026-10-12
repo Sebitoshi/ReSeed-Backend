@@ -52,7 +52,7 @@ const pnpmRoot = path.join(root, 'node_modules/.pnpm');
 const swaggerCandidates = fs
   .readdirSync(pnpmRoot)
   .filter((d) => d.startsWith('swagger-ui-dist@'));
-const assetsDstDir = path.join(outdir, 'swagger-ui-dist');
+const assetsDstDir = path.join(outdir, 'node_modules/swagger-ui-dist');
 fs.mkdirSync(assetsDstDir, { recursive: true });
 
 for (const candidate of swaggerCandidates) {
@@ -74,6 +74,13 @@ for (const candidate of swaggerCandidates) {
     }
     // swagger-ui usa absolute-path.js para resolver su directorio en runtime
     fs.copyFileSync(absPathJs, path.join(outdir, 'absolute-path.js'));
+    // y tambien su package.json para que CommonJS pueda resolver 'swagger-ui-dist/absolute-path.js'
+    // desde el bundle como un paquete propio.
+    fs.writeFileSync(
+      path.join(assetsDstDir, 'package.json'),
+      JSON.stringify({ name: 'swagger-ui-dist', main: 'absolute-path.js' }, null, 2),
+    );
+    fs.copyFileSync(absPathJs, path.join(assetsDstDir, 'absolute-path.js'));
   }
 }
 
