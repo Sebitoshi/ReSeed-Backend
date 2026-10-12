@@ -10,7 +10,7 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && node scripts/bundle-vercel.mjs",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
