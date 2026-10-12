@@ -85,3 +85,42 @@ for (const candidate of swaggerCandidates) {
 }
 
 console.log('[bundle-vercel] Bundle generado en', outdir);
+
+// Externos omitidos del bundle (pg, etc.): los copiamos a node_modules junto
+// al bundle para que la resolucion CommonJS del runtime los encuentre. Vercel
+// incluye node_modules del build, pero el layout pnpm anidado no siempre es
+// alcanzable desde dist/bundle (DriverPackageNotInstalledError en TypeORM).
+const runtimeDeps = ['pg', 'pg-connection-string', 'pg-protocol', 'pg-types', 'pg-pool', 'pg-int8', 'pgpass', 'postgres-array', 'postgres-bytea', 'postgres-date', 'postgres-interval', 'split2', 'packet-reader', 'buffer-writer', 'pg-cloudflare', 'ndjson', 'xtend', 'openssl-defaults', 'tar-stream', 'fs-minipass', 'minipass', 'yallist', 'once', 'wrappy', 'magic-bytes.js', 'bcryptjs', 'nodemailer'];
+const bundleNodeModules = path.join(outdir, 'node_modules');
+fs.mkdirSync(bundleNodeModules, { recursive: true });
+
+function copyPackage(name) {
+  let resolved;
+  try {
+    resolved = require.resolve ? null : null;
+  } catch {}
+  // buscar en el arbol de pnpm
+  const found = [];
+  const walk = (dir, depth) => {
+    if (depth > 6) return;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name === name) { found.push(p); return; }
+        walk(p, depth + 1);
+      }
+    }
+  };
+  walk(path.join(root, 'node_modules/.pnpm'), 0);
+  for (const src of found) {
+    const dst = path.join(bundleNodeModules, name);
+    if (fs.existsSync(dst)) continue;
+    fs.cpSync(src, dst, { recursive: true });
+  }
+  if (found.length) console.log(`[bundle-vercel] ${name} copiado a node_modules del bundle`);
+  else console.warn(`[bundle-vercel] AVISO: no se encontró ${name}`);
+}
+
+for (const dep of runtimeDeps) copyPackage(dep);
