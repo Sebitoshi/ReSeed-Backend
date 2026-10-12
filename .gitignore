@@ -47,3 +47,6 @@ Thumbs.db
 *.swo
 .vercel
 .env*
+
+# Generado por scripts/bundle-vercel.mjs en cada build
+swagger-assets/

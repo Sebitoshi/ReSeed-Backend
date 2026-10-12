@@ -4,6 +4,12 @@ import 'dotenv/config';
 // Dependencias que TypeORM/Swagger cargan en runtime con require() dinamico:
 // el import estatico hace que el tracer de Vercel las incluya en la lambda.
 import './serverless-deps.js';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Raiz del proyecto compilado: dist/ (local) o src/ (en la lambda de Vercel).
+// En ambos casos '..' lleva a la raiz, donde build copia swagger-assets/.
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -54,6 +60,10 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document, {
     customSiteTitle: 'Documentacion de la API',
     swaggerOptions: { persistAuthorization: true },
+    // Los assets de swagger-ui viajan a la lambda en swagger-assets/ (lo copia
+    // scripts/bundle-vercel.mjs): nft no traza los archivos dinamicos del
+    // paquete node_modules, y sin esto /docs carga pero sus .js/.css dan 404.
+    customSwaggerUiPath: join(projectRoot, 'swagger-assets'),
   });
 
   await app.listen(process.env.PORT ?? 3000);

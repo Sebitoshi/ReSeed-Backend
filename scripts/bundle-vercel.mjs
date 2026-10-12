@@ -86,6 +86,26 @@ for (const candidate of swaggerCandidates) {
 
 console.log('[bundle-vercel] Bundle generado en', outdir);
 
+// Copia los assets de swagger-ui a una carpeta del proyecto (no de node_modules):
+// en la lambda de Vercel los archivos del proyecto viajan completos, mientras
+// que node_modules solo incluye lo que nft traza (los assets dinamicos no).
+// main.ts los sirve con customSwaggerUiPath apuntando aqui.
+const swaggerAssets = path.join(root, 'swagger-assets');
+fs.rmSync(swaggerAssets, { recursive: true, force: true });
+fs.mkdirSync(swaggerAssets, { recursive: true });
+
+for (const candidate of swaggerCandidates) {
+  const base = path.join(root, 'node_modules/.pnpm', candidate, 'node_modules', 'swagger-ui-dist');
+  const srcDir = fs.existsSync(path.join(base, 'dist')) ? path.join(base, 'dist') : base;
+  for (const f of fs.readdirSync(srcDir)) {
+    if (/\.(css|png|js|map)$/.test(f)) {
+      fs.copyFileSync(path.join(srcDir, f), path.join(swaggerAssets, f));
+    }
+  }
+  break;
+}
+console.log('[bundle-vercel] Assets de Swagger copiados a swagger-assets/');
+
 // Externos omitidos del bundle (pg, etc.): los copiamos a node_modules junto
 // al bundle para que la resolucion CommonJS del runtime los encuentre. Vercel
 // incluye node_modules del build, pero el layout pnpm anidado no siempre es
