@@ -55,4 +55,11 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-await bootstrap();
+
+// En serverless (Vercel) la invocacion no debe morir si el arranque inicial
+// (p.ej. la conexion a Postgres) falla o tarda: se registra y se relanza,
+// dejando que el request actual reciba un 500 del runtime en vez de un crash.
+bootstrap().catch((error) => {
+  console.error('[bootstrap] Fallo al iniciar la aplicacion:', error);
+  process.exitCode = 1;
+});
