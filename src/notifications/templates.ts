@@ -103,6 +103,47 @@ export function money(cents: number, currency = 'COP'): string {
 }
 
 export const templates = {
+  recuperacionClave(name: string, code: string, minutos: number): EmailContent {
+    const codeHtml = `<p style="margin:20px 0;padding:16px;background:#f3f4f6;border-radius:8px;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:30px;letter-spacing:8px;color:#111827;font-weight:700">${escapeHtml(code)}</p>`;
+    return {
+      title: 'Recupera tu contrasena',
+      greeting: `Hola ${name},`,
+      paragraphs: [
+        'Recibimos una solicitud para restablecer tu contrasena en Reseed. Usa el siguiente codigo:',
+        codeHtml,
+        `El codigo caduca en ${minutos} minutos. Al cambiar la contrasena, cerraremos las sesiones abiertas en otros dispositivos.`,
+        'Si no pediste esto, ignora el correo: tu contrasena no cambiara y puedes solicitar otro codigo cuando quieras.',
+      ],
+    };
+  },
+
+  claveCambiada(name: string, appUrl: string): EmailContent {
+    return {
+      title: 'Tu contrasena fue cambiada',
+      greeting: `Hola ${name},`,
+      paragraphs: [
+        'Restablecimos tu contrasena en Reseed y cerramos las sesiones abiertas en otros dispositivos.',
+        'Si no fuiste tu, contacta al equipo de inmediato: alguien mas pudo tener acceso a tu cuenta.',
+      ],
+      ctaLabel: 'Ir a la plataforma',
+      ctaUrl: appUrl,
+    };
+  },
+
+  verificacionCodigo(name: string, code: string, minutos: number): EmailContent {
+    // El codigo se muestra en grande y con monoespaciado para que sea copiable.
+    const codeHtml = `<p style="margin:20px 0;padding:16px;background:#f3f4f6;border-radius:8px;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:30px;letter-spacing:8px;color:#111827;font-weight:700">${escapeHtml(code)}</p>`;
+    return {
+      title: 'Confirma tu correo',
+      greeting: `Hola ${name},`,
+      paragraphs: [
+        'Usa el siguiente codigo para verificar tu correo y activar tu cuenta en Reseed.',
+        codeHtml,
+        `El codigo caduca en ${minutos} minutos. Si no solicitaste este registro, puedes ignorar este correo.`,
+      ],
+    };
+  },
+
   bienvenida(name: string, appUrl: string): EmailContent {
     return {
       title: 'Bienvenido a Reseed',

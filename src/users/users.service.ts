@@ -14,6 +14,7 @@ export interface PublicUser {
   bio: string | null;
   phone: string | null;
   isActive: boolean;
+  emailVerifiedAt: Date | null;
   createdAt: Date;
 }
 
@@ -41,6 +42,7 @@ export class UsersService {
       bio: user.bio ?? null,
       phone: user.phone ?? null,
       isActive: user.isActive,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
       createdAt: user.createdAt,
     };
   }
@@ -82,6 +84,64 @@ export class UsersService {
       throw new ConflictException('La contrasena actual no coincide');
     }
     user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    user.passwordChangedAt = new Date();
+    await this.users.save(user);
+  }
+
+  // ---------- Verificacion de correo ----------
+
+  /**
+   * Guarda el codigo vigente hasheado y reinicia el contador de intentos.
+   * El codigo en claro nunca se persiste: solo viaja por el correo.
+   */
+  async setVerificationCode(user: User, code: string, ttlMinutes: number): Promise<void> {
+    user.verificationCodeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
+    user.verificationExpiresAt = new Date(Date.now() + ttlMinutes * 60_000);
+    user.verificationSentAt = new Date();
+    user.verificationAttempts = 0;
+    await this.users.save(user);
+  }
+
+  async markEmailVerified(user: User): Promise<void> {
+    user.emailVerifiedAt = new Date();
+    user.verificationCodeHash = null;
+    user.verificationExpiresAt = null;
+    user.verificationSentAt = null;
+    user.verificationAttempts = 0;
+    await this.users.save(user);
+  }
+
+  async bumpVerificationAttempt(user: User): Promise<void> {
+    user.verificationAttempts = (user.verificationAttempts ?? 0) + 1;
+    await this.users.save(user);
+  }
+
+  // ---------- Recuperacion de contrasena ----------
+
+  async setPasswordResetCode(user: User, code: string, ttlMinutes: number): Promise<void> {
+    user.passwordResetCodeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
+    user.passwordResetExpiresAt = new Date(Date.now() + ttlMinutes * 60_000);
+    user.passwordResetSentAt = new Date();
+    user.passwordResetAttempts = 0;
+    await this.users.save(user);
+  }
+
+  async bumpPasswordResetAttempt(user: User): Promise<void> {
+    user.passwordResetAttempts = (user.passwordResetAttempts ?? 0) + 1;
+    await this.users.save(user);
+  }
+
+  /**
+   * Aplica la nueva clave y descarta el codigo. Al fijar passwordChangedAt,
+   * JwtStrategy empieza a rechazar los tokens emitidos hasta este momento.
+   */
+  async resetPassword(user: User, newPassword: string): Promise<void> {
+    user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    user.passwordResetCodeHash = null;
+    user.passwordResetExpiresAt = null;
+    user.passwordResetSentAt = null;
+    user.passwordResetAttempts = 0;
+    user.passwordChangedAt = new Date();
     await this.users.save(user);
   }
 }

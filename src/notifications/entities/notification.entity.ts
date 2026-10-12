@@ -11,6 +11,7 @@ import { User } from '../../users/entities/user.entity.js';
 
 export enum NotificationType {
   REGISTRO = 'registro',
+  VERIFICACION = 'verificacion',
   PAGO = 'pago',
   REEMBOLSO = 'reembolso',
   EMPRENDIMIENTO = 'emprendimiento',

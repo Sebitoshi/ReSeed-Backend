@@ -75,7 +75,9 @@ Se puede responder, en cualquier momento: **¿de qué jornada salió el material
 
 - **Nada llega al público sin pasar por un humano.** Toda ficha de socio y todo producto empieza en borrador y solo se publica cuando un administrador lo aprueba.
 - **Todo queda registrado.** Cada cambio de estado guarda quién lo hizo, cuándo y por qué.
-- **Los correos no bloquean nada.** Si el servicio de correo falla, el registro en base de datos ya quedó hecho y la operación continúa con normalidad.
+- **Los avisos no bloquean nada.** Si el correo falla al confirmar un pago o aprobar una ficha, el registro en base de datos ya quedó hecho y la operación continúa con normalidad.
+- **Cada persona confirma su correo.** Al registrarse recibe un código de 6 dígitos por correo; al ingresarlo su cuenta queda activa.
+- **Si olvidas tu contraseña, la recuperas.** Te enviamos un código al correo y, al usarlo, cambias la contraseña y cerramos las demás sesiones abiertas.
 
 ### Empezar
 
@@ -150,7 +152,9 @@ At any moment you can answer: **which event did this product's material come fro
 
 - **Nothing reaches the public without a human checking it.** Every partner profile and every product starts as a draft and is only published once an administrator approves it.
 - **Everything is recorded.** Every status change stores who did it, when and why.
-- **Emails never block anything.** If the mail service fails, the database record is already saved and the operation continues normally.
+- **Notifications never block anything.** If the mail service fails when confirming a payment or approving a profile, the database record is already saved and the operation continues normally.
+- **Everyone confirms their email.** When signing up you receive a 6-digit code by email; entering it activates your account.
+- **Forgot your password? Recover it.** We send a code to your email; using it changes your password and closes any other open sessions.
 
 ### Getting started
 

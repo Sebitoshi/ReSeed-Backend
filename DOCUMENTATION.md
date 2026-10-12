@@ -76,6 +76,14 @@ Todas tienen valores por defecto para desarrollo local, excepto el SMTP.
 | `SMTP_FROM_EMAIL` | *(igual a `SMTP_USER`)* | Dirección remitente |
 | `SMTP_ENABLED` | `true` | `false` corta los envíos sin borrar credenciales |
 
+### Verificación del correo
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `REQUIRE_EMAIL_VERIFICATION` | `true` | Exige el código de 6 dígitos al registrarse |
+
+**Solo se aplica si el SMTP está habilitado.** Sin correo no hay forma de entregar el código, así que el registro continúa sin verificar en lugar de bloquearse. Pon `false` para saltártela en desarrollo.
+
 > **Si `SMTP_USER` o `SMTP_PASS` están vacíos, nada se rompe.** Las notificaciones se guardan en la base de datos con estado `omitida` y la API responde con normalidad.
 
 ### Conseguir credenciales de Gmail
@@ -151,6 +159,9 @@ src/<modulo>/
 | `1760000006000-campaigns` | Campañas |
 | `1760000007000-volunteer` | Voluntariados e inscripciones |
 | `1760000008000-material-collections` | Materiales recolectados por jornada y su vínculo con la materia prima |
+| `1760000009000-entrepreneurs-camelcase` | Corrige las columnas de `entrepreneurs` que Init creaba en snake_case |
+| `1760000010000-email-verification` | Verificación del correo por código; marca como verificados a los usuarios existentes |
+| `1760000011000-password-reset` | Recuperación de contraseña por código y `password_changed_at` |
 
 Las migraciones son **idempotentes**: verifican con `information_schema` antes de crear cada tabla o columna, así que se pueden ejecutar sobre una base ya existente sin romper nada.
 
@@ -250,6 +261,60 @@ POST /auth/login
 Authorization: Bearer <accessToken>
 ```
 
+### Verificación del correo
+
+El registro **no entrega token de inmediato**. Genera un código de 6 dígitos, lo guarda hasheado con bcrypt y lo envía por correo. La cuenta queda inactiva hasta confirmarlo.
+
+```bash
+# 1. Registrar
+POST /auth/register
+{ "email": "ana@correo.com", "password": "clave123", "name": "Ana" }
+# -> { "user": { ... }, "requiresVerification": true, "verificationExpiresInMinutes": 15 }
+
+# 2. Confirmar el codigo recibido por correo
+POST /auth/verify-email
+{ "email": "ana@correo.com", "code": "482913" }
+# -> { "user": { ... }, "accessToken": "eyJhbGci..." }
+
+# 3. Pedir otro codigo si no llego
+POST /auth/resend-verification
+{ "email": "ana@correo.com" }
+```
+
+Detalles que importan:
+
+- **El código en claro nunca se persiste.** Solo existe su hash bcrypt; el texto viaja por el correo.
+- **Vida útil de 15 minutos**, con 5 intentos por código. Ambos cortan la fuerza bruta.
+- **60 segundos de espera entre reenvíos**, para no agotar la cuota diaria de Gmail (~500 correos).
+- **`login` responde 403** si el correo no está verificado, y **401** si la contraseña es incorrecta. Que el código de estado los distinga permite redirigir al formulario de verificación sin parsear el mensaje.
+- **No revela si un correo está registrado**: `verify-email` y `resend-verification` responden igual aunque la dirección no exista o ya esté confirmada.
+- **Los usuarios anteriores a este cambio quedan verificados** por la migración, así que nadie pierde el acceso.
+
+Se salta la verificación cuando el SMTP está deshabilitado o `REQUIRE_EMAIL_VERIFICATION=false`: exigirla sin forma de entregar el código dejaría a todo el mundo sin poder registrarse.
+
+### Recuperación de contraseña
+
+Mismo patrón que la verificación, con dos endpoints públicos:
+
+```bash
+POST /auth/forgot-password
+{ "email": "ana@correo.com" }
+# -> { "reenviado": true, "mensaje": "Si ese correo tiene una cuenta, ..." }
+
+POST /auth/reset-password
+{ "email": "ana@correo.com", "code": "482913", "password": "ClaveNueva123" }
+# -> { "restablecida": true, "mensaje": "Contrasena actualizada. Inicia sesion con la nueva clave." }
+```
+
+Detalles que importan:
+
+- **Cerramos las demás sesiones.** `users.password_changed_at` guarda el momento del cambio y `JwtStrategy` rechaza cualquier token emitido antes. Sin eso, restablecer la contraseña no desalojaría a quien conserve un token perdido o robado. Lo mismo aplica a `POST /users/me/password`.
+- **No devuelve token.** Hay que iniciar sesión con la clave nueva: así se confirma que la recuerda.
+- **Respuesta neutra** en `forgot-password`, idéntica aunque el correo no tenga cuenta.
+- **Estado propio** (`password_reset_*`), separado del de verificación. Si compartieran columnas, pedir un reset invalidaría el código de verificación pendiente de esa misma persona.
+- **Mismas políticas**: 15 minutos de vida, 5 intentos, 60 segundos entre solicitudes, código hasheado con bcrypt.
+- **Funciona aunque la cuenta no esté verificada.** Alguien que nunca confirmó su correo pero olvidó la clave igual puede recuperarla.
+
 ### Los dos guards
 
 **`JwtAuthGuard`** (global, en `app.module.ts`): exige token en **todos** los endpoints. Las rutas públicas lo liberan con `@Public()`.
@@ -288,13 +353,17 @@ La validación de roles ocurre en **dos niveles**: el guard a nivel de rutas y u
 
 La documentación interactiva está en **`/docs`** (en español, con `persistAuthorization: true`: pegas el token una vez y se queda).
 
-El documento OpenAPI expone **101 operaciones** en **89 rutas**, agrupadas en 10 tags.
+El documento OpenAPI expone **105 operaciones** en **93 rutas**, agrupadas en 10 tags.
 
 ### Autenticación (`/auth`)
 
 | Método | Ruta | Acceso |
 |---|---|---|
 | POST | `/auth/register` | Público + rate limit |
+| POST | `/auth/verify-email` | Público + rate limit |
+| POST | `/auth/resend-verification` | Público + rate limit |
+| POST | `/auth/forgot-password` | Público + rate limit |
+| POST | `/auth/reset-password` | Público + rate limit |
 | POST | `/auth/login` | Público + rate limit |
 | GET | `/auth/roles` | Público |
 | GET | `/auth/admin/only` | Admin |
