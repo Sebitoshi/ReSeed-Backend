@@ -1,6 +1,9 @@
 // Debe ser el primer import: carga .env antes de que AppModule lea process.env
 // (SMTP, JWT, puerto). Sin esto, cualquier valor sin default queda undefined.
 import 'dotenv/config';
+// Dependencias que TypeORM/Swagger cargan en runtime con require() dinamico:
+// el import estatico hace que el tracer de Vercel las incluya en la lambda.
+import './serverless-deps.js';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
