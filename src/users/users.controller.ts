@@ -33,7 +33,8 @@ export class UsersController {
   @Patch('me')
   @ApiOperation({
     summary: 'Actualizar mi perfil',
-    description: 'Actualiza nombre, biografia y telefono del usuario autenticado.',
+    description:
+      'Actualiza nombre, biografia, telefono y rol del usuario autenticado. El rol solo admite comprador, emprendedor o voluntario.',
   })
   async updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
     const found = await this.usersService.findById(user.userId);

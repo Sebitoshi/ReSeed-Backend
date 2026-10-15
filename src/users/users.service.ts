@@ -71,10 +71,15 @@ export class UsersService {
     );
   }
 
-  async updateProfile(user: User, patch: { name?: string; bio?: string; phone?: string }) {
+  async updateProfile(
+    user: User,
+    patch: { name?: string; bio?: string; phone?: string; role?: UserRole },
+  ) {
     if (patch.name !== undefined) user.name = patch.name.trim();
     if (patch.bio !== undefined) user.bio = patch.bio;
     if (patch.phone !== undefined) user.phone = patch.phone;
+    // El rol llega ya validado por UpdateProfileDto: nunca incluye admin.
+    if (patch.role !== undefined) user.role = patch.role;
     return this.users.save(user);
   }
 
