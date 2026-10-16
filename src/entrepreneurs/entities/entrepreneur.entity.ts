@@ -53,6 +53,15 @@ export class Entrepreneur {
   })
   status!: EntrepreneurStatus;
 
+  /**
+   * Ficha del sistema (p.ej. la plataforma vendiendo materia prima).
+   *
+   * No es una ficha de un socio real: se excluye del directorio publico y de la
+   * cola de revision, y se crea sola la primera vez que hace falta.
+   */
+  @Column({ type: 'boolean', default: false, name: 'is_system' })
+  isSystem!: boolean;
+
   // Motivo al rechazar o suspender; visible para el dueño.
   @Column({ type: 'text', nullable: true })
   reviewNote?: string | null;

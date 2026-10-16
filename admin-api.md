@@ -416,6 +416,65 @@ Lo saca del catalogo publico.
 | `id` | string | **sí** |  |
 
 
+## Materia prima (vendedor del sistema)
+
+La plataforma también vende, pero solo **materia prima** (el material recuperado en las
+jornadas). Estos productos cuelgan de una ficha de emprendimiento marcada `isSystem` que se crea
+sola la primera vez y se excluye del directorio público y de la revisión. Son productos de tipo
+`materia_prima` y se muestran en la sección pública **Materia prima**.
+
+### `GET /admin/raw-materials`
+
+**Listar materia prima (admin)**
+
+Productos de tipo materia_prima en cualquier estado. Permite filtrar por estado, búsqueda e
+incluir archivados.
+
+**Parámetros de consulta**
+
+| Parámetro | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `page` | number | no | Número de página (empieza en 1) (por defecto `1`) |
+| `limit` | number | no | Cantidad de resultados por página (maximo 50) (por defecto `12`) |
+| `status` | `borrador` \| `publicado` \| `despublicado` | no | Filtra por estado de publicación |
+| `q` | string | no | Búsqueda por nombre o descripción |
+| `includeArchived` | boolean | no | Incluye tambien los archivados (soft-delete) |
+
+### `POST /admin/raw-materials`
+
+**Crear materia prima (borrador)**
+
+Crea un producto de materia_prima a nombre de la plataforma (vendedor del sistema). Nace en
+borrador; luego se publica. Cuerpo igual que `POST /products` (name, description, priceCents,
+categoryId, stock, images, isActive).
+
+### `GET /admin/raw-materials/:id`
+
+**Ver materia prima (admin)**
+
+### `PATCH /admin/raw-materials/:id`
+
+**Editar materia prima**
+
+Editar un producto publicado lo devuelve a borrador (regla editorial).
+
+### `POST /admin/raw-materials/:id/publish`
+
+**Publicar materia prima**
+
+### `POST /admin/raw-materials/:id/unpublish`
+
+**Despublicar materia prima**
+
+### `DELETE /admin/raw-materials/:id`
+
+**Archivar materia prima (soft-delete)**
+
+### `POST /admin/raw-materials/:id/restore`
+
+**Restaurar materia prima archivada**
+
+
 ## Jornadas de limpieza
 
 ### `GET /volunteer`

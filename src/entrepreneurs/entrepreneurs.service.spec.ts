@@ -42,6 +42,8 @@ function buildQb(store: Row[]) {
       );
     } else if (s.includes('e.deletedAt IS NOT NULL'))
       conds.push((e) => e.deletedAt != null);
+    else if (s.includes('e.isSystem = false'))
+      conds.push((e) => e.isSystem !== true);
     else throw new Error(`Mock no soporta condicion: ${s}`);
     return qb;
   };

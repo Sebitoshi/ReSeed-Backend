@@ -10,11 +10,13 @@ import {
   Price,
   Product,
   ProductStatus,
+  ProductType,
   PublicProduct,
 } from './entities/product.entity.js';
 import type {
   CreateProductDto,
   ListProductsQueryDto,
+  ListRawMaterialsQueryDto,
   UpdateProductDto,
 } from './dto/product.dto.js';
 import { ProductCategory } from './entities/product-category.entity.js';
@@ -25,6 +27,7 @@ import type { AuthUser } from '../users/decorators/current-user.decorator.js';
 import { UserRole } from '../users/entities/user.entity.js';
 import { DEFAULT_PAGE_SIZE } from '../entrepreneurs/dto/list-query.dto.js';
 import type { Paginated } from '../entrepreneurs/entrepreneurs.service.js';
+import { PlatformSellerService } from '../platform/platform-seller.service.js';
 
 export interface OwnerProduct extends PublicProduct {
   entrepreneurId: string;
@@ -43,6 +46,7 @@ export class ProductsService {
     private readonly imagesRepo: Repository<ProductImage>,
     @InjectRepository(Entrepreneur)
     private readonly entrepreneurs: Repository<Entrepreneur>,
+    private readonly platformSeller: PlatformSellerService,
   ) {}
 
   // ---------- Helpers ----------
@@ -59,6 +63,8 @@ export class ProductsService {
       isActive: p.isActive,
       images: images.slice().sort((a, b) => a.position - b.position).map((i) => i.url),
       categoryId: p.categoryId,
+      type: p.type,
+      isRawMaterial: p.type === ProductType.RAW_MATERIAL,
       createdAt: p.createdAt,
     };
   }
@@ -149,6 +155,9 @@ export class ProductsService {
     if (q.entrepreneurId) {
       qb.andWhere('p.entrepreneurId = :entrepreneurId', { entrepreneurId: q.entrepreneurId });
     }
+    if (q.type) {
+      qb.andWhere('p.type = :type', { type: q.type });
+    }
     if (q.q) {
       const term = `%${q.q.toLowerCase()}%`;
       qb.andWhere('(LOWER(p.name) LIKE :term OR LOWER(p.description) LIKE :term)', { term });
@@ -197,6 +206,7 @@ export class ProductsService {
         stock: dto.stock ?? null,
         isActive: dto.isActive ?? true,
         status: ProductStatus.DRAFT,
+        type: ProductType.CRAFT,
         categoryId: dto.categoryId,
         entrepreneurId: entrepreneur.id,
       }),
@@ -251,6 +261,97 @@ export class ProductsService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  // ---------- Materia prima (plataforma) ----------
+
+  private assertAdmin(user: AuthUser): void {
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Solo el administrador puede gestionar la materia prima');
+    }
+  }
+
+  /** Listado de materia prima para el panel admin (cualquier estado). */
+  async listRawMaterials(
+    user: AuthUser,
+    q: ListRawMaterialsQueryDto,
+  ): Promise<Paginated<OwnerProduct>> {
+    this.assertAdmin(user);
+    const qb = this.repo
+      .createQueryBuilder('p')
+      .where('p.type = :type', { type: ProductType.RAW_MATERIAL });
+    if (q.includeArchived) qb.withDeleted();
+    else qb.andWhere('p.deletedAt IS NULL');
+    if (q.status) qb.andWhere('p.status = :status', { status: q.status });
+    if (q.q) {
+      const term = `%${q.q.toLowerCase()}%`;
+      qb.andWhere('(LOWER(p.name) LIKE :term OR LOWER(p.description) LIKE :term)', { term });
+    }
+    const page = Math.max(1, q.page ?? 1);
+    const limit = Math.min(50, Math.max(1, q.limit ?? DEFAULT_PAGE_SIZE));
+    const [rows, total] = await qb
+      .orderBy('p.updatedAt', 'DESC')
+      .take(limit)
+      .skip((page - 1) * limit)
+      .getManyAndCount();
+    const prods = (await this.withImages(rows)) as OwnerProduct[];
+    return {
+      items: prods.map((p, i) => ({
+        ...p,
+        entrepreneurId: rows[i]!.entrepreneurId,
+        status: rows[i]!.status,
+        updatedAt: rows[i]!.updatedAt,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Crea materia prima a nombre de la plataforma (borrador).
+   *
+   * El emprendimiento vendedor es la ficha del sistema, que se crea sola la
+   * primera vez. El admin la edita y publica como cualquier producto.
+   */
+  async createRawMaterial(user: AuthUser, dto: CreateProductDto): Promise<OwnerProduct> {
+    this.assertAdmin(user);
+    const seller = await this.platformSeller.getOrCreate();
+    await this.assertCategory(dto.categoryId);
+    const saved = await this.repo.save(
+      this.repo.create({
+        name: dto.name.trim(),
+        description: dto.description,
+        priceCents: dto.priceCents,
+        stock: dto.stock ?? null,
+        isActive: dto.isActive ?? true,
+        status: ProductStatus.DRAFT,
+        type: ProductType.RAW_MATERIAL,
+        categoryId: dto.categoryId,
+        entrepreneurId: seller.id,
+      }),
+    );
+    if (dto.images?.length) {
+      await this.attachImages(saved.id, dto.images);
+    }
+    const pub = (await this.withImages([saved]))[0]!;
+    return {
+      ...pub,
+      entrepreneurId: saved.entrepreneurId,
+      status: saved.status,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
+  /** Restaura materia prima archivada (solo admin). */
+  async restoreRawMaterial(id: string, user: AuthUser): Promise<OwnerProduct> {
+    this.assertAdmin(user);
+    const product = await this.repo.findOne({ where: { id }, withDeleted: true });
+    if (!product) throw new NotFoundException('Producto no encontrado');
+    if (!product.deletedAt) throw new BadRequestException('El producto no esta archivado');
+    await this.repo.recover(product);
+    return this.viewAs(id, user);
   }
 
   async viewAs(id: string, user: AuthUser): Promise<OwnerProduct> {

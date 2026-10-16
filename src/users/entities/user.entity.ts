@@ -41,6 +41,13 @@ export class User {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
 
+  /**
+   * Cuenta interna del sistema (vendedor de la plataforma). No es una persona:
+   * se oculta de los listados de usuarios y de los contadores del panel.
+   */
+  @Column({ name: 'is_system', type: 'boolean', default: false })
+  isSystem!: boolean;
+
   @Column({ name: 'deactivated_at', type: 'timestamptz', nullable: true })
   deactivatedAt?: Date | null;
 

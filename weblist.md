@@ -83,6 +83,12 @@ las usan los cuatro grupos.
 | 8 | **Jornadas de limpieza** | `/voluntariado` | Jornadas abiertas con inscripción activa, fecha y lugar | `GET /volunteer/public` |
 | 9 | **Detalle de jornada** | `/voluntariado/:id` | Fecha, lugar, qué se recolecta, **lo ya recolectado** (traza) y botón "Inscribirme" (pide sesión) | `GET /volunteer/public/:id`, `GET /volunteer/public/:id/collections` |
 
+> **Materia prima** (vista añadida, `/materia-prima`): los productos que vende la **propia
+> plataforma** (no un socio): el material recuperado en las jornadas, listo para transformar.
+> Muestra la traza *jornada → reciclables → materia prima → tu proceso* y permite comprar.
+> Lee `GET /products/public?type=materia_prima`. El catálogo de socios y el perfil de cada socio
+> usan `type=artesania`, de modo que ambas tiendas no se mezclan.
+
 ---
 
 # 2. Vistas de cuenta (cualquier usuario con sesión)

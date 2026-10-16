@@ -11,7 +11,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../entrepreneurs/dto/list-query.dto.js';
 import { UserRole } from '../../users/entities/user.entity.js';
-import { ProductStatus } from '../../products/entities/product.entity.js';
+import { ProductStatus, ProductType } from '../../products/entities/product.entity.js';
 
 export class ListUsersDto extends PaginationDto {
   @ApiPropertyOptional({ enum: UserRole, description: 'Filtra por rol' })
@@ -62,6 +62,14 @@ export class ListModerationProductsDto extends PaginationDto {
   @IsEnum(ProductStatus)
   @IsOptional()
   status?: ProductStatus;
+
+  @ApiPropertyOptional({
+    enum: ProductType,
+    description: 'Filtra por tipo (artesania o materia_prima)',
+  })
+  @IsEnum(ProductType)
+  @IsOptional()
+  type?: ProductType;
 
   @ApiPropertyOptional({ description: 'Busqueda por nombre o descripcion' })
   @IsString()

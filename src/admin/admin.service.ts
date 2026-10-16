@@ -9,7 +9,7 @@ import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity.js';
 import { Entrepreneur, EntrepreneurStatus } from '../entrepreneurs/entities/entrepreneur.entity.js';
 import { EntrepreneurStatusLog } from '../entrepreneurs/entities/entrepreneur-status-log.entity.js';
-import { Product, ProductStatus } from '../products/entities/product.entity.js';
+import { Product, ProductStatus, ProductType } from '../products/entities/product.entity.js';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity.js';
 import { Refund } from '../payments/entities/refund.entity.js';
 import { Campaign, CampaignStatus } from '../campaigns/entities/campaign.entity.js';
@@ -105,15 +105,22 @@ export class AdminService {
   async overview(): Promise<Record<string, unknown>> {
     const [usersTotal, activeUsers, admins, entrepreneursTotal, pending, approved, productsTotal, published] =
       await Promise.all([
-        this.users.count(),
-        this.users.count({ where: { isActive: true } }),
-        this.users.count({ where: { role: UserRole.ADMIN } }),
-        this.entrepreneurs.count(),
-        this.entrepreneurs.count({ where: { status: EntrepreneurStatus.PENDING } }),
-        this.entrepreneurs.count({ where: { status: EntrepreneurStatus.APPROVED } }),
+        this.users.count({ where: { isSystem: false } }),
+        this.users.count({ where: { isActive: true, isSystem: false } }),
+        this.users.count({ where: { role: UserRole.ADMIN, isSystem: false } }),
+        this.entrepreneurs.count({ where: { isSystem: false } }),
+        this.entrepreneurs.count({ where: { status: EntrepreneurStatus.PENDING, isSystem: false } }),
+        this.entrepreneurs.count({ where: { status: EntrepreneurStatus.APPROVED, isSystem: false } }),
         this.products.count(),
         this.products.count({ where: { status: ProductStatus.PUBLISHED } }),
       ]);
+
+    const [rawTotal, rawPublished] = await Promise.all([
+      this.products.count({ where: { type: ProductType.RAW_MATERIAL } }),
+      this.products.count({
+        where: { type: ProductType.RAW_MATERIAL, status: ProductStatus.PUBLISHED },
+      }),
+    ]);
 
     const [campaigns, activeCampaigns, activities, openActivities, signups, pendingSignups] =
       await Promise.all([
@@ -145,6 +152,7 @@ export class AdminService {
       usuarios: { total: usersTotal, activos: activeUsers, admins },
       emprendimientos: { total: entrepreneursTotal, pendientes: pending, aprobados: approved },
       productos: { total: productsTotal, publicados: published },
+      materiaPrima: { total: rawTotal, publicadas: rawPublished },
       campanas: { total: campaigns, activas: activeCampaigns },
       voluntariados: { total: activities, abiertas: openActivities },
       inscripciones: { total: signups, pendientes: pendingSignups },
@@ -161,7 +169,9 @@ export class AdminService {
   async listUsers(q: ListUsersDto): Promise<Paginated<AdminUserView>> {
     const page = Math.max(1, q.page ?? 1);
     const limit = Math.min(50, Math.max(1, q.limit ?? 12));
-    const qb = this.users.createQueryBuilder('u');
+    const qb = this.users
+      .createQueryBuilder('u')
+      .where('u.isSystem = false');
     if (q.role) qb.andWhere('u.role = :role', { role: q.role });
     if (q.isActive !== undefined) qb.andWhere('u.isActive = :isActive', { isActive: q.isActive });
     if (q.q) {
@@ -283,6 +293,7 @@ export class AdminService {
     if (q.includeArchived) qb.andWhere('1=1');
     else qb.andWhere('p.deletedAt IS NULL');
     if (q.status) qb.andWhere('p.status = :status', { status: q.status });
+    if (q.type) qb.andWhere('p.type = :type', { type: q.type });
     if (q.q) {
       const term = `%${q.q.toLowerCase()}%`;
       qb.andWhere('(LOWER(p.name) LIKE :term OR LOWER(p.description) LIKE :term)', { term });
@@ -300,6 +311,8 @@ export class AdminService {
         priceCents: p.priceCents,
         price: Money.centsToDecimalString(p.priceCents),
         status: p.status,
+        type: p.type,
+        isRawMaterial: p.type === ProductType.RAW_MATERIAL,
         isActive: p.isActive,
         archived: Boolean(p.deletedAt),
         categoryName: p.category?.name ?? null,

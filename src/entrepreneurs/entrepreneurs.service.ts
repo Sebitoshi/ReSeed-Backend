@@ -151,7 +151,8 @@ export class EntrepreneursService {
   async findApproved(q: DirectoryQueryDto): Promise<Paginated<PublicEntrepreneur>> {
     const qb = this.repo
       .createQueryBuilder('e')
-      .where('e.status = :status', { status: EntrepreneurStatus.APPROVED });
+      .where('e.status = :status', { status: EntrepreneurStatus.APPROVED })
+      .andWhere('e.isSystem = false');
 
     if (q.categoria) {
       qb.andWhere('LOWER(e.category) = LOWER(:categoria)', { categoria: q.categoria });
@@ -173,7 +174,7 @@ export class EntrepreneursService {
   /** Perfil publico por slug; 404 si no esta aprobado. */
   async findApprovedBySlug(slug: string): Promise<PublicEntrepreneur> {
     const e = await this.repo.findOne({
-      where: { slug, status: EntrepreneurStatus.APPROVED },
+      where: { slug, status: EntrepreneurStatus.APPROVED, isSystem: false },
     });
     if (!e) throw new NotFoundException('Emprendimiento no encontrado');
     return this.toPublic(e);
@@ -335,7 +336,7 @@ export class EntrepreneursService {
     const qb = this.repo
       .createQueryBuilder('e')
       .leftJoin('e.owner', 'owner')
-      .where('1=1');
+      .where('e.isSystem = false');
     if (q.status) qb.andWhere('e.status = :status', { status: q.status });
     if (q.ownerId) qb.andWhere('e.ownerId = :ownerId', { ownerId: q.ownerId });
 
@@ -372,7 +373,11 @@ export class EntrepreneursService {
   async listArchived(user: AuthUser, q: PaginationDto): Promise<Paginated<OwnerEntrepreneur>> {
     this.assertAdmin(user);
     const page = await paginate(this.repo)(
-      this.repo.createQueryBuilder('e').withDeleted().where('e.deletedAt IS NOT NULL'),
+      this.repo
+        .createQueryBuilder('e')
+        .withDeleted()
+        .where('e.deletedAt IS NOT NULL')
+        .andWhere('e.isSystem = false'),
       q,
     );
     return {

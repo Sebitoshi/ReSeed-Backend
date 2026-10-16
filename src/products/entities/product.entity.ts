@@ -18,6 +18,18 @@ export enum ProductStatus {
   UNPUBLISHED = 'despublicado',
 }
 
+/**
+ * Que se vende con este producto.
+ *
+ * La plataforma vende materia prima (el material recuperado en las jornadas) y
+ * los socios venden artesania. Es la misma tabla porque comparten todo el ciclo
+ * de venta; solo cambia quien lo publica y donde se muestra.
+ */
+export enum ProductType {
+  CRAFT = 'artesania',
+  RAW_MATERIAL = 'materia_prima',
+}
+
 export class Price {
   /** Centavos -> "12.50" (string estable, sin flotantes). */
   static centsToDecimalString(cents: number): string {
@@ -43,12 +55,16 @@ export interface PublicProduct {
   isActive: boolean;
   images: string[];
   categoryId: string;
+  /** artesania (socios) o materia_prima (plataforma). */
+  type: ProductType;
+  isRawMaterial: boolean;
   createdAt: Date;
 }
 
 @Entity('products')
 @Index('idx_products_entrepreneur', ['entrepreneurId'])
 @Index('idx_products_status', ['status'])
+@Index('idx_products_type', ['type'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -72,6 +88,10 @@ export class Product {
 
   @Column({ type: 'varchar', length: 20, default: ProductStatus.DRAFT })
   status!: ProductStatus;
+
+  // Tipo de venta: artesania (socios) o materia_prima (plataforma).
+  @Column({ type: 'varchar', length: 20, default: ProductType.CRAFT })
+  type!: ProductType;
 
   @ManyToOne(() => ProductCategory, (c) => c.children, { nullable: false })
   @JoinColumn({ name: 'category_id' })

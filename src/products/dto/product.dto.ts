@@ -2,6 +2,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -13,6 +14,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ProductStatus, ProductType } from '../entities/product.entity.js';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Miel de Ulmo', description: 'Nombre del producto' })
@@ -176,4 +178,46 @@ export class ListProductsQueryDto {
   @IsString()
   @IsOptional()
   q?: string;
+
+  @ApiPropertyOptional({
+    enum: ProductType,
+    description:
+      'Filtra por tipo de venta. El catalogo de socios usa "artesania" y la seccion de la plataforma "materia_prima".',
+  })
+  @IsEnum(ProductType)
+  @IsOptional()
+  type?: ProductType;
+}
+
+/** Listado de materia prima para el panel admin (incluye estados y archivados). */
+export class ListRawMaterialsQueryDto {
+  @ApiPropertyOptional({ description: 'Numero de pagina (empieza en 1)', default: 1 })
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  @IsOptional()
+  page?: number;
+
+  @ApiPropertyOptional({ description: 'Resultados por pagina (maximo 50)', default: 12 })
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  @IsOptional()
+  limit?: number;
+
+  @ApiPropertyOptional({ enum: ProductStatus, description: 'Filtra por estado de publicacion' })
+  @IsEnum(ProductStatus)
+  @IsOptional()
+  status?: ProductStatus;
+
+  @ApiPropertyOptional({ description: 'Busqueda por nombre o descripcion' })
+  @IsString()
+  @IsOptional()
+  q?: string;
+
+  @ApiPropertyOptional({ description: 'Incluye tambien los archivados (soft-delete)' })
+  @Type(() => Boolean)
+  @IsBoolean()
+  @IsOptional()
+  includeArchived?: boolean;
 }

@@ -9,6 +9,7 @@ import {
 import { Product, ProductStatus } from './entities/product.entity.js';
 import { ProductCategory } from './entities/product-category.entity.js';
 import { ProductImage } from './entities/product-image.entity.js';
+import { PlatformSellerService } from '../platform/platform-seller.service.js';
 import type { AuthUser } from '../users/decorators/current-user.decorator.js';
 
 const user = (role: string, userId = 'u1'): AuthUser => ({
@@ -209,6 +210,10 @@ describe('ProductsService (unit)', () => {
         { provide: getRepositoryToken(ProductCategory), useValue: makeCategoriesRepo(cats) },
         { provide: getRepositoryToken(ProductImage), useValue: imagesRepo },
         { provide: getRepositoryToken(Entrepreneur), useValue: makeEntrepreneursRepo(ents) },
+        {
+          provide: PlatformSellerService,
+          useValue: { getOrCreate: async () => ({ id: 'sys-seller' }) },
+        },
       ],
     }).compile();
     service = moduleRef.get(ProductsService);
