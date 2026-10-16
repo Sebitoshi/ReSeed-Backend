@@ -13,6 +13,7 @@ import { AdminModule } from './admin/admin.module.js';
 import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
 import { RolesGuard } from './users/decorators/roles.guard.js';
 import { postgresSslOptions } from './database/postgres-ssl.js';
+import { postgresPoolOptions } from './database/postgres-pool.js';
 
 @Module({
   imports: [
@@ -25,6 +26,8 @@ import { postgresSslOptions } from './database/postgres-ssl.js';
       database: process.env.POSTGRES_DB ?? 'reseed',
       // TLS opcional (p.ej. Aiven); ver POSTGRES_SSL en .env.
       ...postgresSslOptions(),
+      // Pool pequeno por instancia; ver postgres-pool.ts.
+      extra: postgresPoolOptions(),
       autoLoadEntities: true,
       // Esquema gestionado EXCLUSIVAMENTE por migraciones. Solo para scaffolding
       // en desarrollo local fresco: TYPEORM_SYNCHRONIZE=true.

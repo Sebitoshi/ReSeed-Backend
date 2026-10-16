@@ -16,6 +16,7 @@ import {
   VolunteerSignup,
 } from '../volunteer/entities/volunteer.entity.js';
 import { postgresSslOptions } from './postgres-ssl.js';
+import { postgresPoolOptions } from './postgres-pool.js';
 
 export default new DataSource({
   type: 'postgres',
@@ -25,6 +26,8 @@ export default new DataSource({
   password: process.env.POSTGRES_PASSWORD ?? 'reseed',
   database: process.env.POSTGRES_DB ?? 'reseed',
   ...postgresSslOptions(),
+  // Pool pequeno tambien para migrations/scripts; ver postgres-pool.ts.
+  extra: postgresPoolOptions(),
   entities: [
     User,
     Entrepreneur,
