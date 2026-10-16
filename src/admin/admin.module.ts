@@ -7,6 +7,7 @@ import { Product } from '../products/entities/product.entity.js';
 import { Payment } from '../payments/entities/payment.entity.js';
 import { Refund } from '../payments/entities/refund.entity.js';
 import { Campaign } from '../campaigns/entities/campaign.entity.js';
+import { Donation } from '../donations/entities/donation.entity.js';
 import { VolunteerActivity, VolunteerSignup } from '../volunteer/entities/volunteer.entity.js';
 import { Notification } from '../notifications/entities/notification.entity.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
@@ -27,6 +28,7 @@ import { AdminController } from './admin.controller.js';
       Payment,
       Refund,
       Campaign,
+      Donation,
       VolunteerActivity,
       VolunteerSignup,
       Notification,

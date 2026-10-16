@@ -10,6 +10,7 @@ import { PaymentsService } from './payments.service.js';
 import { Payment, PaymentStatus } from './entities/payment.entity.js';
 import { Refund } from './entities/refund.entity.js';
 import { Entrepreneur } from '../entrepreneurs/entities/entrepreneur.entity.js';
+import { Donation, DonationStatus } from '../donations/entities/donation.entity.js';
 import type { GatewayProvider } from './gateway/payment-gateway.interface.js';
 import { PAYMENTS_GATEWAY } from './payments.constants.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -90,6 +91,29 @@ function makeEntsRepo(store: Array<Partial<Entrepreneur> & { id: string }>) {
   };
 }
 
+function makeDonationsRepo(store: Array<Partial<Donation> & { id: string }> = []) {
+  return {
+    store,
+    create: vi.fn((data: Partial<Donation>) => data as Donation),
+    save: vi.fn(async (e: Partial<Donation> & { id?: string }) => {
+      const row = { id: e.id ?? 'don-' + (store.length + 1), ...e } as Donation;
+      const i = store.findIndex((d) => d.id === row.id);
+      if (i >= 0) store[i] = { ...store[i], ...row };
+      else store.push(row);
+      return row;
+    }),
+    findOne: vi.fn(async ({ where }: { where: { id?: string; paymentId?: string | null } }) => {
+      return (
+        store.find(
+          (d) =>
+            (!where.id || d.id === where.id) &&
+            (where.paymentId === undefined || d.paymentId === where.paymentId),
+        ) ?? null
+      );
+    }),
+  };
+}
+
 const gwStub: GatewayProvider = {
   name: 'dummy',
   createCheckout: vi.fn(async (input) => ({
@@ -104,6 +128,7 @@ describe('PaymentsService (unit)', () => {
   let service: PaymentsService;
   let paymentsRepo: ReturnType<typeof makePaymentsRepo>;
   let refundsRepo: ReturnType<typeof makeRefundsRepo>;
+  let donationsRepo: ReturnType<typeof makeDonationsRepo>;
   const ents = [
     { id: 'e1', ownerId: 'u1' },
     { id: 'e2', ownerId: 'u2' },
@@ -113,6 +138,7 @@ describe('PaymentsService (unit)', () => {
   beforeEach(async () => {
     paymentsRepo = makePaymentsRepo([]);
     refundsRepo = makeRefundsRepo([]);
+    donationsRepo = makeDonationsRepo([]);
     vi.clearAllMocks();
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -120,6 +146,7 @@ describe('PaymentsService (unit)', () => {
         { provide: getRepositoryToken(Payment), useValue: paymentsRepo },
         { provide: getRepositoryToken(Refund), useValue: refundsRepo },
         { provide: getRepositoryToken(Entrepreneur), useValue: makeEntsRepo(ents) },
+        { provide: getRepositoryToken(Donation), useValue: donationsRepo },
         { provide: PAYMENTS_GATEWAY, useValue: gwRef },
         { provide: NotificationsService, useValue: { notifyUser: vi.fn(async () => null) } },
         {
@@ -268,5 +295,37 @@ describe('PaymentsService (unit)', () => {
     await expect(
       service.createRefund(payment.id, user('comprador'), { amountCents: 1000 }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  // Donaciones: el pago manda y la donacion vinculada copia su estado.
+  const linkDonation = (paymentId: string) => {
+    donationsRepo.store.push({ id: 'don-1', paymentId, amountCents: 20000 });
+  };
+
+  it('donaciones: aprobar el pago confirma la donacion vinculada', async () => {
+    const { payment } = await service.createCheckout(user('comprador'), { amountCents: 20000 });
+    linkDonation(payment.id);
+
+    await service.processWebhookEvent({ externalRef: payment.externalRef, outcome: 'approved' });
+
+    expect(donationsRepo.store[0].status).toBe(DonationStatus.APPROVED);
+    expect(donationsRepo.store[0].confirmedAt).toBeInstanceOf(Date);
+  });
+
+  it('donaciones: rechazar el pago rechaza la donacion vinculada', async () => {
+    const { payment } = await service.createCheckout(user('comprador'), { amountCents: 20000 });
+    linkDonation(payment.id);
+
+    await service.processWebhookEvent({ externalRef: payment.externalRef, outcome: 'rejected' });
+
+    expect(donationsRepo.store[0].status).toBe(DonationStatus.REJECTED);
+    expect(donationsRepo.store[0].confirmedAt).toBeUndefined();
+  });
+
+  it('donaciones: un pago sin donacion se confirma igual', async () => {
+    const { payment } = await service.createCheckout(user('comprador'), { amountCents: 1500 });
+    const res = await service.resolveSandbox(payment.id, user('comprador'), 'approved');
+    expect(res.status).toBe(PaymentStatus.APPROVED);
+    expect(donationsRepo.store).toHaveLength(0);
   });
 });

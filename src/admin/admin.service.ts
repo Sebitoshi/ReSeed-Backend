@@ -13,6 +13,7 @@ import { Product, ProductStatus, ProductType } from '../products/entities/produc
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity.js';
 import { Refund } from '../payments/entities/refund.entity.js';
 import { Campaign, CampaignStatus } from '../campaigns/entities/campaign.entity.js';
+import { Donation, DonationStatus } from '../donations/entities/donation.entity.js';
 import {
   SignupStatus,
   VolunteerActivity,
@@ -76,6 +77,7 @@ export class AdminService {
     @InjectRepository(VolunteerActivity) private readonly activities: Repository<VolunteerActivity>,
     @InjectRepository(VolunteerSignup) private readonly signups: Repository<VolunteerSignup>,
     @InjectRepository(Notification) private readonly notifications: Repository<Notification>,
+    @InjectRepository(Donation) private readonly donations: Repository<Donation>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -142,11 +144,21 @@ export class AdminService {
       .select('COALESCE(SUM(p.amountCents), 0)', 'total')
       .where('p.status = :status', { status: PaymentStatus.APPROVED })
       .getRawOne<{ total: string }>();
-
     const refundsTotal = await this.refunds
       .createQueryBuilder('r')
       .select('COALESCE(SUM(r.amountCents), 0)', 'total')
       .getRawOne<{ total: string }>();
+
+    const [donationsTotal, donationsApproved, donationsRaised] = await Promise.all([
+      this.donations.count(),
+      this.donations.count({ where: { status: DonationStatus.APPROVED } }),
+      this.donations
+        .createQueryBuilder('d')
+        .select('COALESCE(SUM(d.amountCents), 0)', 'total')
+        .where('d.status = :status', { status: DonationStatus.APPROVED })
+        .getRawOne<{ total: string }>()
+        .then((row) => Money.centsToDecimalString(Number(row?.total ?? 0))),
+    ]);
 
     return {
       usuarios: { total: usersTotal, activos: activeUsers, admins },
@@ -154,6 +166,7 @@ export class AdminService {
       productos: { total: productsTotal, publicados: published },
       materiaPrima: { total: rawTotal, publicadas: rawPublished },
       campanas: { total: campaigns, activas: activeCampaigns },
+      donaciones: { total: donationsTotal, aprobadas: donationsApproved, recaudado: donationsRaised },
       voluntariados: { total: activities, abiertas: openActivities },
       inscripciones: { total: signups, pendientes: pendingSignups },
       notificaciones: { enviadas: sent, fallidas: failed },
