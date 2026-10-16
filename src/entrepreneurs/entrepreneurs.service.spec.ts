@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EntrepreneursService } from './entrepreneurs.service.js';
 import { Entrepreneur, EntrepreneurStatus } from './entities/entrepreneur.entity.js';
 import { EntrepreneurStatusLogService } from './entrepreneur-status-log.service.js';
@@ -88,11 +88,18 @@ function makeRepoMock() {
       return e as Entrepreneur;
     }),
     findOne: vi.fn(
-      async ({ where, withDeleted }: { where: { id?: string; slug?: string }; withDeleted?: boolean }) =>
+      async ({
+        where,
+        withDeleted,
+      }: {
+        where: { id?: string; slug?: string; ownerId?: string };
+        withDeleted?: boolean;
+      }) =>
         store.find(
           (e) =>
             (!where.id || e.id === where.id) &&
             (!where.slug || e.slug === where.slug) &&
+            (!where.ownerId || e.ownerId === where.ownerId) &&
             (withDeleted || !e.deletedAt),
         ) ?? null,
     ),
@@ -158,12 +165,25 @@ describe('EntrepreneursService (unit)', () => {
       name: 'Miel Dorada',
       description: 'Miel pura de apicultores locales de pequeñas granjas.',
     });
-    const b = await service.submit(user('emprendedor'), {
+    const b = await service.submit(user('emprendedor', 'u2'), {
       name: 'Miel Dorada',
       description: 'Segunda solicitud con la misma marca de miel regional.',
     });
     expect(a.slug).toBe('miel-dorada');
     expect(b.slug).toBe('miel-dorada-2');
+  });
+
+  it('submit bloquea un segundo emprendimiento del mismo socio (409)', async () => {
+    await service.submit(user('emprendedor'), {
+      name: 'Miel Dorada',
+      description: 'Miel pura de apicultores locales de pequeñas granjas.',
+    });
+    await expect(
+      service.submit(user('emprendedor'), {
+        name: 'Otra Marca',
+        description: 'Otra descripcion suficientemente larga para el modelo.',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('slugify quita acentos y caracteres raros', async () => {
@@ -241,7 +261,7 @@ describe('EntrepreneursService (unit)', () => {
     );
     await service.approve(
       (
-        await service.submit(user('emprendedor'), {
+        await service.submit(user('emprendedor', 'u2'), {
           name: 'Tela Ruda',
           description: 'Mantas de lana tejidas en telar de madera.',
           category: 'textil',
@@ -260,12 +280,18 @@ describe('EntrepreneursService (unit)', () => {
   });
 
   it('listMine pagina con envelope estandar', async () => {
-    for (const name of ['A Uno', 'B Dos', 'C Tres']) {
-      await service.submit(user('emprendedor'), {
+    // Se insertan directo: un socio no puede tener varias fichas via submit.
+    ['A Uno', 'B Dos', 'C Tres'].forEach((name, i) => {
+      repo.store.push({
+        id: `e-${i + 1}`,
+        ownerId: 'u1',
         name,
         description: 'Descripcion suficientemente larga para pasar la validacion.',
-      });
-    }
+        status: EntrepreneurStatus.PENDING,
+        isSystem: false,
+        createdAt: new Date(2025, 0, i + 1),
+      } as Row);
+    });
     const res = await service.listMine('u1', { page: 1, limit: 2 });
     expect(res.items).toHaveLength(2);
     expect(res.total).toBe(3);

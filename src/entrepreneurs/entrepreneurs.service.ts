@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -136,6 +137,17 @@ export class EntrepreneursService {
 
   /** Solicitud de publicacion: cualquier usuario autenticado. */
   async submit(owner: AuthUser, dto: CreateEntrepreneurDto): Promise<OwnerEntrepreneur> {
+    // Un socio = un emprendimiento activo. Si ya tiene ficha (aunque este
+    // pendiente o rechazada) edita y reenvia esa misma; asi no se duplican.
+    const existing = await this.repo.findOne({
+      where: { ownerId: owner.userId },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Ya tienes un emprendimiento registrado. Edítalo o reenvíalo a revisión; cada socio puede tener uno solo.',
+      );
+    }
+
     const entity = this.repo.create({
       ...dto,
       slug: await this.uniqueSlug(dto.name),

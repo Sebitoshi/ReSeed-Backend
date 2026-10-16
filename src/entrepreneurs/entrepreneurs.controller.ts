@@ -76,7 +76,7 @@ export class EntrepreneursController {
   @ApiOperation({
     summary: 'Solicitar publicacion de un emprendimiento',
     description:
-      'Cualquier usuario autenticado puede crear su ficha. Entra en estado "pendiente" hasta que un admin la revise.',
+      'Cualquier usuario autenticado puede crear su ficha (solo una por socio). Entra en estado "pendiente" hasta que un admin la revise.',
   })
   submit(@CurrentUser() user: AuthUser, @Body() dto: CreateEntrepreneurDto) {
     return this.service.submit(user, dto);
