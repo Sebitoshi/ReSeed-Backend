@@ -182,6 +182,38 @@ export class PaymentsService {
     return { payment: this.toOwnerView(payment), checkoutUrl: session.checkoutUrl };
   }
 
+  // ---------- Sandbox: la pasarela simulada dentro de la app ----------
+
+  /**
+   * Resuelve un pago de la pasarela simulada desde el checkout de la app, sin
+   * depender de un PSP real. Solo se expone cuando la pasarela activa es
+   * `dummy` (el controlador lo verifica). Reutiliza la misma maquina de estados
+   * del webhook: idempotencia, validacion de monto y notificaciones identicas.
+   */
+  async resolveSandbox(
+    paymentId: string,
+    user: AuthUser,
+    outcome: 'approved' | 'rejected' | 'cancelled',
+  ): Promise<OwnerPayment> {
+    const payment = await this.payments.findOne({ where: { id: paymentId } });
+    if (!payment) throw new NotFoundException('Pago no encontrado');
+
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isBuyer = payment.payerUserId === user.userId;
+    if (!isAdmin && !isBuyer) {
+      throw new ForbiddenException('No puedes operar este pago');
+    }
+
+    await this.processWebhookEvent({
+      externalRef: payment.externalRef,
+      outcome,
+      amountCents: payment.amountCents,
+    });
+
+    const updated = await this.payments.findOne({ where: { id: paymentId } });
+    return this.toOwnerView(updated ?? payment);
+  }
+
   // ---------- Webhook: confirmacion de la pasarela ----------
 
   /**

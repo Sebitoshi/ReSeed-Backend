@@ -197,6 +197,32 @@ describe('PaymentsService (unit)', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('sandbox: el comprador resuelve su propio pago pendiente', async () => {
+    const { payment } = await service.createCheckout(user('comprador'), { amountCents: 3000 });
+    const res = await service.resolveSandbox(payment.id, user('comprador'), 'approved');
+    expect(res.status).toBe(PaymentStatus.APPROVED);
+    expect(res.confirmedAt).not.toBeNull();
+  });
+
+  it('sandbox: un admin puede resolver el pago de cualquier comprador', async () => {
+    const { payment } = await service.createCheckout(user('comprador'), { amountCents: 3000 });
+    const res = await service.resolveSandbox(payment.id, user('admin', 'adm'), 'rejected');
+    expect(res.status).toBe(PaymentStatus.REJECTED);
+  });
+
+  it('sandbox: un tercero no puede resolver el pago ajeno -> 403', async () => {
+    const { payment } = await service.createCheckout(user('comprador'), { amountCents: 3000 });
+    await expect(
+      service.resolveSandbox(payment.id, { ...user('comprador'), userId: 'intruso' }, 'approved'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('sandbox: pago inexistente -> 404', async () => {
+    await expect(
+      service.resolveSandbox('no-existe', user('comprador'), 'approved'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('refund: total y parcial; pagador, vendedor y admin pueden; extraño no', async () => {
     // buyer1 compra del emprendimiento e1 (dueno u1)
     const { payment } = await service.createCheckout(

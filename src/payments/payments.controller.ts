@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
-import { IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
   ApiBearerAuth,
@@ -118,6 +118,17 @@ export class RefundHttpDto {
   reason?: string;
 }
 
+export class SandboxOutcomeDto {
+  /** Resultado simulado que devolveria la pasarela sandbox. */
+  @ApiProperty({
+    description: 'Resultado simulado que devolveria la pasarela sandbox',
+    enum: ['approved', 'rejected', 'cancelled'],
+    example: 'approved',
+  })
+  @IsIn(['approved', 'rejected', 'cancelled'])
+  outcome!: 'approved' | 'rejected' | 'cancelled';
+}
+
 export class ListPaymentsQueryDto {
   /** Numero de pagina (empieza en 1). */
   @ApiProperty({
@@ -171,6 +182,24 @@ export class PaymentsController {
   @Post('checkout')
   createCheckout(@CurrentUser() user: AuthUser, @Body() dto: CreatePaymentHttpDto) {
     return this.service.createCheckout(user, dto);
+  }
+
+  @ApiOperation({
+    summary: 'Resolver un pago en la pasarela sandbox',
+    description:
+      'Simula el resultado del checkout cuando la pasarela activa es la "dummy" (sandbox): aprueba, rechaza o cancela un pago pendiente. Solo el comprador del pago (o un admin) puede resolverlo. Con una pasarela real este endpoint queda deshabilitado.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID del pago', format: 'uuid' })
+  @Post(':id/sandbox')
+  sandbox(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SandboxOutcomeDto,
+  ) {
+    if (this.gateway.name !== 'dummy') {
+      throw new ForbiddenException('La pasarela sandbox no esta activa');
+    }
+    return this.service.resolveSandbox(id, user, dto.outcome);
   }
 
   @ApiOperation({
