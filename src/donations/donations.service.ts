@@ -57,8 +57,11 @@ export interface AdminDonationStats {
   aprobadas: number;
   pendientes: number;
   recaudado: string;
+  recaudadoCents: number;
   fondoGeneral: string;
+  fondoGeneralCents: number;
   porCampana: string;
+  porCampanaCents: number;
   topCampanas: { campaignId: string; title: string; raisedCents: number; donors: number }[];
 }
 
@@ -319,8 +322,11 @@ export class DonationsService {
       aprobadas: countOf(DonationStatus.APPROVED),
       pendientes: countOf(DonationStatus.PENDING),
       recaudado: Money.centsToDecimalString(raised),
+      recaudadoCents: raised,
       fondoGeneral: Money.centsToDecimalString(general),
+      fondoGeneralCents: general,
       porCampana: Money.centsToDecimalString(raised - general),
+      porCampanaCents: raised - general,
       topCampanas: top.map((r) => ({
         campaignId: r.campaignId,
         title: r.title,
