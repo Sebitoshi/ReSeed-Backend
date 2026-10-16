@@ -8,6 +8,7 @@ import { ProductsModule } from './products/products.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { CampaignsModule } from './campaigns/campaigns.module.js';
+import { DonationsModule } from './donations/donations.module.js';
 import { VolunteerModule } from './volunteer/volunteer.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { JwtAuthGuard } from './users/decorators/jwt-auth.guard.js';
@@ -40,6 +41,7 @@ import { postgresPoolOptions } from './database/postgres-pool.js';
     PaymentsModule,
     NotificationsModule,
     CampaignsModule,
+    DonationsModule,
     VolunteerModule,
     AdminModule,
   ],

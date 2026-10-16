@@ -10,6 +10,7 @@ import { Payment } from '../payments/entities/payment.entity.js';
 import { Refund } from '../payments/entities/refund.entity.js';
 import { Notification } from '../notifications/entities/notification.entity.js';
 import { Campaign } from '../campaigns/entities/campaign.entity.js';
+import { Donation } from '../donations/entities/donation.entity.js';
 import {
   MaterialCollection,
   VolunteerActivity,
@@ -39,6 +40,7 @@ export default new DataSource({
     Refund,
     Notification,
     Campaign,
+    Donation,
     VolunteerActivity,
     VolunteerSignup,
     MaterialCollection,

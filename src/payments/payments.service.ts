@@ -19,6 +19,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { NotificationType } from '../notifications/entities/notification.entity.js';
 import { templates } from '../notifications/templates.js';
 import { UsersService } from '../users/users.service.js';
+import { Donation, DonationStatus } from '../donations/entities/donation.entity.js';
 
 export const DEFAULT_CURRENCY = 'COP';
 
@@ -74,6 +75,8 @@ export class PaymentsService {
     private readonly refunds: Repository<Refund>,
     @InjectRepository(Entrepreneur)
     private readonly entrepreneurs: Repository<Entrepreneur>,
+    @InjectRepository(Donation)
+    private readonly donations: Repository<Donation>,
     @Inject(PAYMENTS_GATEWAY)
     private readonly gateway: GatewayProvider,
     private readonly notifications: NotificationsService,
@@ -140,6 +143,33 @@ export class PaymentsService {
       payerUserId: p.payerUserId,
       entrepreneurId: p.entrepreneurId,
     };
+  }
+
+  // ---------- Donaciones ----------
+
+  /**
+   * Refleja el estado del pago en la donacion que lo financia, si existe.
+   * Los estados de donacion espejan los de pago, asi que el mapeo es directo.
+   * Best-effort: el cobro ya quedo guardado y no se rompe por este lado.
+   */
+  private async syncDonation(payment: Payment): Promise<void> {
+    if (!payment?.id) return;
+    try {
+      const donation = await this.donations.findOne({ where: { paymentId: payment.id } });
+      if (!donation) return;
+      const map: Record<PaymentStatus, DonationStatus> = {
+        [PaymentStatus.PENDING]: DonationStatus.PENDING,
+        [PaymentStatus.APPROVED]: DonationStatus.APPROVED,
+        [PaymentStatus.REJECTED]: DonationStatus.REJECTED,
+        [PaymentStatus.CANCELLED]: DonationStatus.CANCELLED,
+        [PaymentStatus.REFUNDED]: DonationStatus.REFUNDED,
+      };
+      donation.status = map[payment.status] ?? donation.status;
+      if (payment.confirmedAt) donation.confirmedAt = payment.confirmedAt;
+      await this.donations.save(donation);
+    } catch {
+      // Sin donacion asociada o error de escritura: no afecta al pago.
+    }
   }
 
   // ---------- Crear checkout ----------
@@ -248,6 +278,7 @@ export class PaymentsService {
       payment.confirmedAt = new Date();
       await this.payments.save(payment);
       await this.notifyBuyer(payment.payerUserId, payment, 'confirmado');
+      await this.syncDonation(payment);
       return { paymentId: payment.id, status: payment.status, changed: true };
     }
 
@@ -263,6 +294,7 @@ export class PaymentsService {
       payment.status = PaymentStatus.REJECTED;
       await this.payments.save(payment);
       await this.notifyBuyer(payment.payerUserId, payment, 'rechazado');
+      await this.syncDonation(payment);
       return { paymentId: payment.id, status: payment.status, changed: true };
     }
 
@@ -277,6 +309,7 @@ export class PaymentsService {
       }
       payment.status = PaymentStatus.CANCELLED;
       await this.payments.save(payment);
+      await this.syncDonation(payment);
       return { paymentId: payment.id, status: payment.status, changed: true };
     }
 
@@ -323,6 +356,7 @@ export class PaymentsService {
     }
     await this.payments.save(payment);
     await this.notifyBuyer(payment.payerUserId, payment, 'reembolso');
+    await this.syncDonation(payment);
     return { paymentId: payment.id, status: payment.status, changed: true };
   }
 
